@@ -18,7 +18,7 @@ export const WindowControl: React.FC<WindowControlProps> = ({
       type="window"
       status={windowOpen}
       onToggle={toggleWindow}
-      disabled={disabled || loading}
+      disabled={disabled || loading.window}
       icon={<DoorOpen className="w-6 h-6" />}
     />
   );

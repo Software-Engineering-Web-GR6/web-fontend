@@ -17,8 +17,10 @@ export interface DeviceControl {
 export interface DeviceState {
   fanOn: boolean;
   windowOpen: boolean;
+  acOn: boolean;
   lastUpdated: string;
   setFanOn: (on: boolean) => void;
   setWindowOpen: (open: boolean) => void;
+  setAcOn: (on: boolean) => void;
   setLastUpdated: (time: string) => void;
 }
