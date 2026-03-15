@@ -1,5 +1,5 @@
 import api from "./api";
-import { SensorHistory, ApiResponse } from "../types";
+import type { SensorHistory, ApiResponse } from "../types";
 
 export interface SensorHistoryResponse {
   history: SensorHistory[];

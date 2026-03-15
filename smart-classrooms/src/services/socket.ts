@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { SOCKET_URL } from "../utils/constants";
-import { SensorData } from "../types";
+import type { SensorData } from "../types";
 
 class SocketService {
   private socket: Socket | null = null;
