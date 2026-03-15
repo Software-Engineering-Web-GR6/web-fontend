@@ -3,6 +3,7 @@ import Layout from "../../components/layout/Layout";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import FanControl from "../../components/devices/FanControl";
 import WindowControl from "../../components/devices/WindowControl";
+import AcControl from "../../components/devices/AcControl";
 import { Fan, DoorOpen, Lightbulb, AirVent, Power } from "lucide-react";
 import Badge from "../../components/ui/Badge";
 
@@ -28,7 +29,7 @@ const Devices: React.FC = () => {
     { id: "6", name: "Điều hòa", type: "ac", status: false, icon: AirVent },
   ];
 
-  const onlineCount = devices.filter((d) => d.status).length;
+  const onlineCount = devices.filter((device) => device.status).length;
 
   return (
     <Layout
@@ -36,8 +37,7 @@ const Devices: React.FC = () => {
       subtitle="Quản lý thiết bị phòng học"
       isAdmin={true}
     >
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card padding="sm">
           <div className="flex items-center justify-between">
             <div>
@@ -75,8 +75,7 @@ const Devices: React.FC = () => {
         </Card>
       </div>
 
-      {/* Device Controls */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Điều khiển nhanh</CardTitle>
@@ -84,6 +83,7 @@ const Devices: React.FC = () => {
           <div className="space-y-3">
             <FanControl />
             <WindowControl />
+            <AcControl />
           </div>
         </Card>
 
@@ -97,7 +97,7 @@ const Devices: React.FC = () => {
               return (
                 <div
                   key={device.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
                 >
                   <div className="flex items-center gap-3">
                     <Icon
@@ -120,11 +120,10 @@ const Devices: React.FC = () => {
         </Card>
       </div>
 
-      {/* All Devices Grid */}
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900">
         Tất cả thiết bị
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {devices.map((device) => {
           const Icon = device.icon;
           return (
@@ -132,7 +131,7 @@ const Devices: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    className={`flex h-12 w-12 items-center justify-center rounded-xl ${
                       device.status ? "bg-indigo-100" : "bg-gray-100"
                     }`}
                   >
@@ -144,13 +143,13 @@ const Devices: React.FC = () => {
                     <h3 className="font-semibold text-gray-900">
                       {device.name}
                     </h3>
-                    <p className="text-xs text-gray-500 capitalize">
+                    <p className="text-xs capitalize text-gray-500">
                       {device.type}
                     </p>
                   </div>
                 </div>
                 <div
-                  className={`w-3 h-3 rounded-full ${
+                  className={`h-3 w-3 rounded-full ${
                     device.status ? "bg-green-500" : "bg-gray-300"
                   }`}
                 />

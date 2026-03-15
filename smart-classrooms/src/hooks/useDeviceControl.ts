@@ -2,42 +2,79 @@ import { useState, useCallback } from "react";
 import { useDeviceStore } from "../store";
 import { deviceApi } from "../services";
 
+type DeviceLoadingState = {
+  fan: boolean;
+  window: boolean;
+  ac: boolean;
+};
+
 export const useDeviceControl = () => {
-  const { fanOn, windowOpen, setFanOn, setWindowOpen } = useDeviceStore();
-  const [loading, setLoading] = useState(false);
+  const { fanOn, windowOpen, acOn, setFanOn, setWindowOpen, setAcOn } =
+    useDeviceStore();
+  const [loading, setLoading] = useState<DeviceLoadingState>({
+    fan: false,
+    window: false,
+    ac: false,
+  });
   const [error, setError] = useState<string | null>(null);
 
+  const setDeviceLoading = useCallback(
+    (device: keyof DeviceLoadingState, value: boolean) => {
+      setLoading((prev) => ({ ...prev, [device]: value }));
+    },
+    [],
+  );
+
   const toggleFan = useCallback(async () => {
+    const newState = !fanOn;
+    setFanOn(newState);
+    setDeviceLoading("fan", true);
+    setError(null);
+
     try {
-      setLoading(true);
-      const newState = !fanOn;
       await deviceApi.controlFan(newState ? "turnOn" : "turnOff");
-      setFanOn(newState);
     } catch (err) {
+      setFanOn(!newState);
       setError("Failed to control fan");
       console.error(err);
-      // Update local state anyway for demo purposes
-      setFanOn(!fanOn);
     } finally {
-      setLoading(false);
+      setDeviceLoading("fan", false);
     }
-  }, [fanOn, setFanOn]);
+  }, [fanOn, setFanOn, setDeviceLoading]);
 
   const toggleWindow = useCallback(async () => {
+    const newState = !windowOpen;
+    setWindowOpen(newState);
+    setDeviceLoading("window", true);
+    setError(null);
+
     try {
-      setLoading(true);
-      const newState = !windowOpen;
       await deviceApi.controlWindow(newState ? "turnOn" : "turnOff");
-      setWindowOpen(newState);
     } catch (err) {
+      setWindowOpen(!newState);
       setError("Failed to control window");
       console.error(err);
-      // Update local state anyway for demo purposes
-      setWindowOpen(!windowOpen);
     } finally {
-      setLoading(false);
+      setDeviceLoading("window", false);
     }
-  }, [windowOpen, setWindowOpen]);
+  }, [windowOpen, setWindowOpen, setDeviceLoading]);
+
+  const toggleAc = useCallback(async () => {
+    const newState = !acOn;
+    setAcOn(newState);
+    setDeviceLoading("ac", true);
+    setError(null);
+
+    try {
+      await deviceApi.controlAc(newState ? "turnOn" : "turnOff");
+    } catch (err) {
+      setAcOn(!newState);
+      setError("Failed to control AC");
+      console.error(err);
+    } finally {
+      setDeviceLoading("ac", false);
+    }
+  }, [acOn, setAcOn, setDeviceLoading]);
 
   const setFan = useCallback(
     (on: boolean) => {
@@ -53,14 +90,24 @@ export const useDeviceControl = () => {
     [setWindowOpen],
   );
 
+  const setAc = useCallback(
+    (on: boolean) => {
+      setAcOn(on);
+    },
+    [setAcOn],
+  );
+
   return {
     fanOn,
     windowOpen,
+    acOn,
     loading,
     error,
     toggleFan,
     toggleWindow,
+    toggleAc,
     setFan,
     setWindow,
+    setAc,
   };
 };

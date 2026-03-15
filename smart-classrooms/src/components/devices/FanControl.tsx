@@ -16,7 +16,7 @@ export const FanControl: React.FC<FanControlProps> = ({ disabled = false }) => {
       type="fan"
       status={fanOn}
       onToggle={toggleFan}
-      disabled={disabled || loading}
+      disabled={disabled || loading.fan}
       icon={
         <Fan
           className={`w-6 h-6 ${fanOn ? "animate-spin" : ""}`}

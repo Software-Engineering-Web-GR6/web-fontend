@@ -1,6 +1,7 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import clsx from "clsx";
+import { authApi } from "../../services";
 import {
   LayoutDashboard,
   Settings,
@@ -80,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
       <div className="p-4 border-t border-gray-200">
         <button
           onClick={() => {
-            localStorage.removeItem("token");
+            authApi.logout();
             window.location.href = "/login";
           }}
           className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
