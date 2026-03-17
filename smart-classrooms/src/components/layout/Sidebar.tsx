@@ -1,5 +1,5 @@
 import React from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
   LayoutDashboard,
@@ -11,6 +11,7 @@ import {
   History,
   LogOut,
 } from "lucide-react";
+import { useAuthStore } from "../../store/authStore";
 
 interface SidebarProps {
   isAdmin?: boolean;
@@ -18,6 +19,8 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
 
   const adminLinks = [
     { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -35,6 +38,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
 
   const links = isAdmin ? adminLinks : userLinks;
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
       {/* Logo */}
@@ -49,6 +57,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
           </div>
         </div>
       </div>
+
+      {/* User Info */}
+      {user && (
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+              {user.fullName?.charAt(0) ||
+                user.username.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user.fullName || user.username}
+              </p>
+              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              <span
+                className={clsx(
+                  "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1",
+                  user.role === "admin"
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-blue-100 text-blue-700",
+                )}
+              >
+                {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
@@ -79,11 +115,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
       {/* Footer */}
       <div className="p-4 border-t border-gray-200">
         <button
-          onClick={() => {
-            localStorage.removeItem("token");
-            window.location.href = "/login";
-          }}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
         >
           <LogOut className="w-5 h-5" />
           Đăng xuất
