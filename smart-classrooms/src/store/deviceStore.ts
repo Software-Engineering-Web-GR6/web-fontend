@@ -3,7 +3,9 @@ import type { DeviceState } from "../types";
 
 export const useDeviceStore = create<DeviceState>((set) => ({
   fanOn: false,
-  windowOpen: false,
+  lightOn: true,
+  acOn: false,
+  acTemp: 24,
   lastUpdated: new Date().toISOString(),
 
   setFanOn: (on: boolean) => {
@@ -13,9 +15,23 @@ export const useDeviceStore = create<DeviceState>((set) => ({
     });
   },
 
-  setWindowOpen: (open: boolean) => {
+  setLightOn: (on: boolean) => {
     set({
-      windowOpen: open,
+      lightOn: on,
+      lastUpdated: new Date().toISOString(),
+    });
+  },
+
+  setAcOn: (on: boolean) => {
+    set({
+      acOn: on,
+      lastUpdated: new Date().toISOString(),
+    });
+  },
+
+  setAcTemp: (temp: number) => {
+    set({
+      acTemp: temp,
       lastUpdated: new Date().toISOString(),
     });
   },

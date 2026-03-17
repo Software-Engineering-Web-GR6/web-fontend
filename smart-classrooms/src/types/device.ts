@@ -1,5 +1,5 @@
 // Device Types
-export type DeviceType = "fan" | "window" | "light" | "ac";
+export type DeviceType = "fan" | "light" | "ac";
 
 export interface Device {
   id: string;
@@ -16,9 +16,13 @@ export interface DeviceControl {
 
 export interface DeviceState {
   fanOn: boolean;
-  windowOpen: boolean;
+  lightOn: boolean;
+  acOn: boolean;
+  acTemp: number;
   lastUpdated: string;
   setFanOn: (on: boolean) => void;
-  setWindowOpen: (open: boolean) => void;
+  setLightOn: (on: boolean) => void;
+  setAcOn: (on: boolean) => void;
+  setAcTemp: (temp: number) => void;
   setLastUpdated: (time: string) => void;
 }

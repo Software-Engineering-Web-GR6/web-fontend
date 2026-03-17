@@ -4,18 +4,20 @@ import TempCard from "../../components/sensors/TempCard";
 import HumidityCard from "../../components/sensors/HumidityCard";
 import ComfortIndex from "../../components/sensors/ComfortIndex";
 import FanControl from "../../components/devices/FanControl";
-import WindowControl from "../../components/devices/WindowControl";
+import LightControl from "../../components/devices/LightControl";
+import AcControl from "../../components/devices/AcControl";
 import AlertBanner from "../../components/alerts/AlertBanner";
 import TempLineChart from "../../components/charts/TempLineChart";
 import HumidityChart from "../../components/charts/HumidityChart";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import { useSensor } from "../../hooks";
-import { useSensorStore } from "../../store";
+import { useSensorStore, useDeviceStore } from "../../store";
 
 const AdminDashboard: React.FC = () => {
   // Initialize sensor connection
   useSensor();
   const { isConnected } = useSensorStore();
+  const { fanOn, lightOn, acOn, acTemp } = useDeviceStore();
 
   return (
     <Layout
@@ -69,7 +71,8 @@ const AdminDashboard: React.FC = () => {
           </CardHeader>
           <div className="space-y-3">
             <FanControl />
-            <WindowControl />
+            <LightControl />
+            <AcControl />
           </div>
         </Card>
 
@@ -77,20 +80,30 @@ const AdminDashboard: React.FC = () => {
           <CardHeader>
             <CardTitle>Trạng thái thiết bị</CardTitle>
           </CardHeader>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <span className="text-sm text-gray-600">Quạt</span>
-              <span className="text-sm font-medium text-green-600">
-                Hoạt động
+              <span
+                className={`text-sm font-medium ${fanOn ? "text-green-600" : "text-gray-400"}`}
+              >
+                {fanOn ? "Đang chạy" : "Tắt"}
               </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-gray-600">Cửa sổ</span>
-              <span className="text-sm font-medium text-gray-600">Đóng</span>
+              <span className="text-sm text-gray-600">Đèn</span>
+              <span
+                className={`text-sm font-medium ${lightOn ? "text-yellow-600" : "text-gray-400"}`}
+              >
+                {lightOn ? "Đang bật" : "Tắt"}
+              </span>
             </div>
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <span className="text-sm text-gray-600">Điều hòa</span>
-              <span className="text-sm font-medium text-gray-400">Chờ</span>
+              <span
+                className={`text-sm font-medium ${acOn ? "text-cyan-600" : "text-gray-400"}`}
+              >
+                {acOn ? `Đang chạy - ${acTemp}°C` : "Tắt"}
+              </span>
             </div>
           </div>
         </Card>

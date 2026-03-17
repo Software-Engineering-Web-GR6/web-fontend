@@ -8,30 +8,106 @@ import AdminUsers from "../pages/admin/Users";
 import UserDashboard from "../pages/user/Dashboard";
 import UserHistory from "../pages/user/History";
 import UserAlerts from "../pages/user/Alerts";
+import Login from "../pages/Login";
+import ProtectedRoute from "../components/layout/ProtectedRoute";
+import { useAuthStore } from "../store/authStore";
 
 const AppRoutes: React.FC = () => {
-  // Get role from localStorage or default to admin for demo
-  const role = localStorage.getItem("role") || "admin";
+  const { isAuthenticated, user } = useAuthStore();
 
-  if (role === "user") {
-    return (
-      <Routes>
-        <Route path="/user/dashboard" element={<UserDashboard />} />
-        <Route path="/user/history" element={<UserHistory />} />
-        <Route path="/user/alerts" element={<UserAlerts />} />
-        <Route path="*" element={<Navigate to="/user/dashboard" replace />} />
-      </Routes>
-    );
-  }
+  // Redirect root to appropriate page
+  const getDefaultRedirect = () => {
+    if (!isAuthenticated) return "/login";
+    return user?.role === "admin" ? "/admin/dashboard" : "/user/dashboard";
+  };
 
   return (
     <Routes>
-      <Route path="/admin/dashboard" element={<AdminDashboard />} />
-      <Route path="/admin/alerts" element={<AdminAlerts />} />
-      <Route path="/admin/devices" element={<AdminDevices />} />
-      <Route path="/admin/users" element={<AdminUsers />} />
-      <Route path="/admin/settings" element={<AdminSettings />} />
-      <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+      {/* Public Route */}
+      <Route
+        path="/login"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getDefaultRedirect()} replace />
+          ) : (
+            <Login />
+          )
+        }
+      />
+
+      {/* Admin Routes */}
+      <Route
+        path="/admin/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/alerts"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminAlerts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/devices"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminDevices />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminUsers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminSettings />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* User Routes */}
+      <Route
+        path="/user/dashboard"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/history"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <UserHistory />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/alerts"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <UserAlerts />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Default Redirect */}
+      <Route
+        path="*"
+        element={<Navigate to={getDefaultRedirect()} replace />}
+      />
     </Routes>
   );
 };

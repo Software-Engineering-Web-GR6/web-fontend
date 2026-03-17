@@ -2,30 +2,25 @@ import React from "react";
 import Layout from "../../components/layout/Layout";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import FanControl from "../../components/devices/FanControl";
-import WindowControl from "../../components/devices/WindowControl";
-import { Fan, DoorOpen, Lightbulb, AirVent, Power } from "lucide-react";
+import LightControl from "../../components/devices/LightControl";
+import AcControl from "../../components/devices/AcControl";
+import { Fan, Lightbulb, AirVent, Power } from "lucide-react";
 import Badge from "../../components/ui/Badge";
+import { useDeviceStore } from "../../store";
 
 const Devices: React.FC = () => {
+  const { fanOn, lightOn, acOn } = useDeviceStore();
+
   const devices = [
-    { id: "1", name: "Quạt trần", type: "fan", status: true, icon: Fan },
-    { id: "2", name: "Quạt đứng", type: "fan", status: false, icon: Fan },
+    { id: "1", name: "Quạt trần", type: "fan", status: fanOn, icon: Fan },
     {
-      id: "3",
-      name: "Cửa sổ chính",
-      type: "window",
-      status: false,
-      icon: DoorOpen,
+      id: "2",
+      name: "Đèn trần",
+      type: "light",
+      status: lightOn,
+      icon: Lightbulb,
     },
-    {
-      id: "4",
-      name: "Cửa sổ phụ",
-      type: "window",
-      status: true,
-      icon: DoorOpen,
-    },
-    { id: "5", name: "Đèn trần", type: "light", status: true, icon: Lightbulb },
-    { id: "6", name: "Điều hòa", type: "ac", status: false, icon: AirVent },
+    { id: "3", name: "Điều hòa", type: "ac", status: acOn, icon: AirVent },
   ];
 
   const onlineCount = devices.filter((d) => d.status).length;
@@ -83,7 +78,8 @@ const Devices: React.FC = () => {
           </CardHeader>
           <div className="space-y-3">
             <FanControl />
-            <WindowControl />
+            <LightControl />
+            <AcControl />
           </div>
         </Card>
 

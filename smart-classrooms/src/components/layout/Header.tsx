@@ -1,7 +1,7 @@
 import React from "react";
 import { useAlerts } from "../../hooks";
+import { useAuthStore } from "../../store/authStore";
 import { Bell, User } from "lucide-react";
-import Badge from "../ui/Badge";
 
 interface HeaderProps {
   title: string;
@@ -10,6 +10,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const { unreadCount } = useAlerts();
+  const { user } = useAuthStore();
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
@@ -32,12 +33,24 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
           {/* User Profile */}
           <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
-            <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center">
-              <User className="w-5 h-5 text-indigo-600" />
+            <div
+              className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                user?.role === "admin" ? "bg-purple-100" : "bg-blue-100"
+              }`}
+            >
+              <User
+                className={`w-5 h-5 ${
+                  user?.role === "admin" ? "text-purple-600" : "text-blue-600"
+                }`}
+              />
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-medium text-gray-900">Admin</p>
-              <p className="text-xs text-gray-500">Quản trị viên</p>
+              <p className="text-sm font-medium text-gray-900">
+                {user?.fullName || user?.username || "Guest"}
+              </p>
+              <p className="text-xs text-gray-500">
+                {user?.role === "admin" ? "Quản trị viên" : "Người dùng"}
+              </p>
             </div>
           </div>
         </div>

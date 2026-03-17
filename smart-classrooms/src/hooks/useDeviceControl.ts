@@ -3,7 +3,16 @@ import { useDeviceStore } from "../store";
 import { deviceApi } from "../services";
 
 export const useDeviceControl = () => {
-  const { fanOn, windowOpen, setFanOn, setWindowOpen } = useDeviceStore();
+  const {
+    fanOn,
+    lightOn,
+    acOn,
+    acTemp,
+    setFanOn,
+    setLightOn,
+    setAcOn,
+    setAcTemp,
+  } = useDeviceStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,21 +32,44 @@ export const useDeviceControl = () => {
     }
   }, [fanOn, setFanOn]);
 
-  const toggleWindow = useCallback(async () => {
+  const toggleLight = useCallback(async () => {
     try {
       setLoading(true);
-      const newState = !windowOpen;
-      await deviceApi.controlWindow(newState ? "turnOn" : "turnOff");
-      setWindowOpen(newState);
+      const newState = !lightOn;
+      await deviceApi.control("light", newState ? "turnOn" : "turnOff");
+      setLightOn(newState);
     } catch (err) {
-      setError("Failed to control window");
+      setError("Failed to control light");
       console.error(err);
       // Update local state anyway for demo purposes
-      setWindowOpen(!windowOpen);
+      setLightOn(!lightOn);
     } finally {
       setLoading(false);
     }
-  }, [windowOpen, setWindowOpen]);
+  }, [lightOn, setLightOn]);
+
+  const toggleAc = useCallback(async () => {
+    try {
+      setLoading(true);
+      const newState = !acOn;
+      await deviceApi.control("ac", newState ? "turnOn" : "turnOff");
+      setAcOn(newState);
+    } catch (err) {
+      setError("Failed to control AC");
+      console.error(err);
+      // Update local state anyway for demo purposes
+      setAcOn(!acOn);
+    } finally {
+      setLoading(false);
+    }
+  }, [acOn, setAcOn]);
+
+  const changeAcTemp = useCallback(
+    (temp: number) => {
+      setAcTemp(temp);
+    },
+    [setAcTemp],
+  );
 
   const setFan = useCallback(
     (on: boolean) => {
@@ -46,21 +78,17 @@ export const useDeviceControl = () => {
     [setFanOn],
   );
 
-  const setWindow = useCallback(
-    (open: boolean) => {
-      setWindowOpen(open);
-    },
-    [setWindowOpen],
-  );
-
   return {
     fanOn,
-    windowOpen,
+    lightOn,
+    acOn,
+    acTemp,
     loading,
     error,
     toggleFan,
-    toggleWindow,
+    toggleLight,
+    toggleAc,
+    changeAcTemp,
     setFan,
-    setWindow,
   };
 };

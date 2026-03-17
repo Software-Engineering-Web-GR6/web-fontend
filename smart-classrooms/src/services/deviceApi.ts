@@ -39,16 +39,4 @@ export const deviceApi = {
     );
     return response.data.data.device;
   },
-
-  // Control window specifically
-  controlWindow: async (action: "turnOn" | "turnOff"): Promise<Device> => {
-    const response = await api.post<ApiResponse<DeviceControlResponse>>(
-      "/api/device/control",
-      {
-        deviceId: "window",
-        action,
-      } as DeviceControl,
-    );
-    return response.data.data.device;
-  },
 };
