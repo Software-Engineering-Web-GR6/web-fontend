@@ -6,6 +6,7 @@ import { AdminSettings } from '../pages/admin/Settings';
 import { AdminDevices } from '../pages/admin/Devices';
 import { AdminUsers } from '../pages/admin/Users';
 import { KagglePage } from '../pages/admin/KagglePage';
+import { ApiGuidePage } from '../pages/admin/ApiGuidePage';
 
 export function AdminRoutes() {
   return (
@@ -18,6 +19,7 @@ export function AdminRoutes() {
         <Route path="devices" element={<AdminDevices />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="kaggle" element={<KagglePage />} />
+        <Route path="api-guide" element={<ApiGuidePage />} />
       </Route>
     </Routes>
   );

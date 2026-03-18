@@ -10,16 +10,41 @@ import { HumidityChart } from '../../components/charts/HumidityChart';
 import { AlertBanner } from '../../components/alerts/AlertBanner';
 import { getTemperatureStatus, getHumidityStatus } from '../../utils/thresholdLogic';
 import { DEFAULT_THRESHOLDS } from '../../utils/constants';
-import { generateDemoReadings, demoRooms, demoDevices, demoAlerts } from '../../utils/demoData';
+import { demoRooms, generateDemoReadings, demoDevices, demoAlerts } from '../../utils/demoData';
 import type { DeviceState } from '../../types/device';
+
+/**
+ * Kết nối real-time & API được thực hiện qua các hook sau:
+ *
+ *  useSensor(roomId)          → src/hooks/useSensor.ts
+ *    Lắng nghe sự kiện "sensor:update" từ WebSocket (Socket.IO)
+ *    và tải lịch sử ban đầu bằng GET /sensors/:roomId/history
+ *
+ *  useDeviceControl(roomId)   → src/hooks/useDeviceControl.ts
+ *    Tải trạng thái thiết bị bằng GET /devices/:roomId
+ *    Gửi lệnh bằng POST /devices/command
+ *    Lắng nghe thay đổi tự động qua sự kiện "device:update"
+ *
+ *  useAlerts()                → src/hooks/useAlerts.ts
+ *    Tải cảnh báo cũ bằng GET /alerts
+ *    Nhận cảnh báo mới qua sự kiện "alert:new" từ WebSocket
+ *
+ * Để bật real-time thật, thay khối demo bên dưới bằng:
+ *   const { latest, history, isConnected } = useSensor(selectedRoom);
+ *   const { device, toggleFan, toggleWindow } = useDeviceControl(selectedRoom);
+ *   const { alerts } = useAlerts();
+ */
 
 export function AdminDashboard() {
   const [selectedRoom, setSelectedRoom] = useState(demoRooms[0]);
   const [devices, setDevices] = useState(demoDevices);
   const [dismissedAlerts, setDismissedAlerts] = useState<Set<string>>(new Set());
 
+  // --- DEMO DATA (thay bằng hook khi backend sẵn sàng) ---
   const history = generateDemoReadings(selectedRoom);
   const latest = history[history.length - 1];
+  // --------------------------------------------------------
+
   const thresholds = { ...DEFAULT_THRESHOLDS, roomId: selectedRoom };
   const tempStatus = getTemperatureStatus(latest.temperature, thresholds);
   const humStatus = getHumidityStatus(latest.humidity, thresholds);

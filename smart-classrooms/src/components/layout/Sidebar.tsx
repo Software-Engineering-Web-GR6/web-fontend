@@ -11,6 +11,7 @@ const adminLinks = [
   { to: '/admin/settings', label: 'Cài đặt', icon: '⚙️' },
   { to: '/admin/users', label: 'Người dùng', icon: '👥' },
   { to: '/admin/kaggle', label: 'Kaggle Dataset', icon: '📊' },
+  { to: '/admin/api-guide', label: 'Real-time & API', icon: '🔗' },
 ];
 
 const userLinks = [
