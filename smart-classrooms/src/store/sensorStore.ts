@@ -9,6 +9,7 @@ import {
 export const useSensorStore = create<SensorState>((set, get) => ({
   temp: DEFAULT_TEMP,
   humidity: DEFAULT_HUMIDITY,
+  co2: 800,
   history: [],
   isConnected: false,
 
@@ -16,6 +17,7 @@ export const useSensorStore = create<SensorState>((set, get) => ({
     set({
       temp: data.temp,
       humidity: data.humidity,
+      co2: data.co2,
     });
   },
 

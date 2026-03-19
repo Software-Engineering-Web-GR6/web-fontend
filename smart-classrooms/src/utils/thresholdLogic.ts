@@ -1,20 +1,27 @@
 import type { Threshold, Alert } from "../types";
 import type { AlertLevel, AlertType } from "../types/alert";
 
+export type ComfortLevel =
+  | "comfortable"
+  | "too_hot"
+  | "too_cold"
+  | "too_humid"
+  | "too_dry"
+  | "too_stale";
+
 // Calculate comfort index based on temperature and humidity
 export const calculateComfortIndex = (
   temp: number,
   humidity: number,
 ): {
-  level: "comfortable" | "too_hot" | "too_cold" | "too_humid" | "too_dry";
+  level: ComfortLevel;
   value: number;
 } => {
   // Simplified comfort index calculation
   // Optimal: temp 20-26°C, humidity 40-60%
 
   let score = 100;
-  let level: "comfortable" | "too_hot" | "too_cold" | "too_humid" | "too_dry" =
-    "comfortable";
+  let level: ComfortLevel = "comfortable";
 
   // Temperature deviation
   if (temp > 26) {
@@ -39,6 +46,92 @@ export const calculateComfortIndex = (
     value: Math.max(0, Math.min(100, score)),
   };
 };
+
+export const calculateComfortIndexV2 = (
+  temp: number,
+  humidity: number,
+  co2: number,
+): {
+  level: ComfortLevel;
+  value: number;
+  breakdown: {
+    thermalScore: number;
+    co2Score: number;
+    temperatureScore: number;
+    humidityScore: number;
+  };
+} => {
+  const temperaturePenalty = temp > 26 ? (temp - 26) * 6 : temp < 20 ? (20 - temp) * 6 : 0;
+  const humidityPenalty =
+    humidity > 60 ? (humidity - 60) * 2 : humidity < 40 ? (40 - humidity) * 2 : 0;
+
+  const temperatureScore = clamp(100 - temperaturePenalty, 0, 100);
+  const humidityScore = clamp(100 - humidityPenalty, 0, 100);
+
+  const thermalScore = clamp(
+    Math.round(temperatureScore * 0.65 + humidityScore * 0.35),
+    0,
+    100,
+  );
+
+  const co2Score = calculateCo2Score(co2);
+
+  const value = clamp(Math.round(thermalScore * 0.7 + co2Score * 0.3), 0, 100);
+
+  let level: ComfortLevel = "comfortable";
+  if (co2 > 1400) {
+    level = "too_stale";
+  } else if (temp > 26) {
+    level = "too_hot";
+  } else if (temp < 20) {
+    level = "too_cold";
+  } else if (humidity > 60) {
+    level = "too_humid";
+  } else if (humidity < 40) {
+    level = "too_dry";
+  }
+
+  if (
+    value >= 75 &&
+    temp >= 20 &&
+    temp <= 26 &&
+    humidity >= 40 &&
+    humidity <= 60 &&
+    co2 <= 1000
+  ) {
+    level = "comfortable";
+  }
+
+  return {
+    level,
+    value,
+    breakdown: {
+      thermalScore,
+      co2Score,
+      temperatureScore: Math.round(temperatureScore),
+      humidityScore: Math.round(humidityScore),
+    },
+  };
+};
+
+const calculateCo2Score = (co2: number): number => {
+  if (co2 <= 800) {
+    return 100;
+  }
+  if (co2 <= 1000) {
+    return Math.round(100 - ((co2 - 800) / 200) * 15);
+  }
+  if (co2 <= 1400) {
+    return Math.round(85 - ((co2 - 1000) / 400) * 35);
+  }
+  if (co2 <= 2000) {
+    return Math.round(50 - ((co2 - 1400) / 600) * 40);
+  }
+  return 10;
+};
+
+const clamp = (value: number, min: number, max: number): number =>
+  Math.max(min, Math.min(max, value));
 
 // Check if temperature is within threshold
 export const isTempInRange = (temp: number, threshold: Threshold): boolean => {

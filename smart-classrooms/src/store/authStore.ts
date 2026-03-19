@@ -28,7 +28,10 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: any) {
           set({
             isLoading: false,
-            error: error.response?.data?.message || "Đăng nhập thất bại",
+            error:
+              error.response?.data?.detail ||
+              error.response?.data?.message ||
+              "Đăng nhập thất bại",
           });
           throw error;
         }

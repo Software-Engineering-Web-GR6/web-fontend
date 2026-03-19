@@ -1,45 +1,93 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Layout from "../../components/layout/Layout";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
-import { User, Mail, Shield, MoreVertical } from "lucide-react";
+import { User, Mail, Shield, Trash2, Plus, AlertCircle } from "lucide-react";
+import { authApi } from "../../services/authApi";
 
 const Users: React.FC = () => {
-  const users = [
-    {
-      id: "1",
-      name: "Nguyễn Văn A",
-      email: "admin@school.edu",
-      role: "admin",
-      status: "active",
-    },
-    {
-      id: "2",
-      name: "Trần Thị B",
-      email: "teacher1@school.edu",
-      role: "user",
-      status: "active",
-    },
-    {
-      id: "3",
-      name: "Lê Văn C",
-      email: "teacher2@school.edu",
-      role: "user",
-      status: "active",
-    },
-    {
-      id: "4",
-      name: "Phạm Thị D",
-      email: "staff@school.edu",
-      role: "user",
-      status: "inactive",
-    },
-  ];
+  const [users, setUsers] = useState<
+    Array<{
+      id: number;
+      full_name: string;
+      email: string;
+      role: "admin" | "user";
+      created_at: string;
+    }>
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const adminCount = users.filter((u) => u.role === "admin").length;
-  const userCount = users.filter((u) => u.role === "user").length;
-  const activeCount = users.filter((u) => u.status === "active").length;
+  const adminCount = useMemo(
+    () => users.filter((u) => u.role === "admin").length,
+    [users],
+  );
+  const userCount = useMemo(
+    () => users.filter((u) => u.role === "user").length,
+    [users],
+  );
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await authApi.listUsers();
+      setUsers(data);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || "Không thể tải danh sách người dùng");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await authApi.createUser({
+        full_name: fullName.trim(),
+        email: email.trim(),
+        password,
+      });
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      await fetchUsers();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || "Tạo tài khoản thất bại");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    const confirmed = window.confirm("Bạn có chắc chắn muốn xoá tài khoản này?");
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(userId);
+    setError(null);
+    try {
+      await authApi.deleteUser(userId);
+      setUsers((prev) => prev.filter((item) => item.id !== userId));
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || "Xoá tài khoản thất bại");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <Layout
@@ -71,14 +119,56 @@ const Users: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Đang hoạt động</p>
-              <p className="text-2xl font-bold text-green-600">{activeCount}</p>
+              <p className="text-2xl font-bold text-green-600">{userCount}</p>
             </div>
             <Badge variant="success">
-              {activeCount}/{users.length}
+              {userCount}/{users.length}
             </Badge>
           </div>
         </Card>
       </div>
+
+      {/* Create User */}
+      <Card className="mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">Tạo tài khoản mới</h2>
+        <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            placeholder="Họ và tên"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            required
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            required
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mật khẩu"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            minLength={6}
+            required
+          />
+          <Button type="submit" loading={submitting} className="w-full">
+            <Plus className="w-4 h-4 mr-1" />
+            Tạo tài khoản
+          </Button>
+        </form>
+      </Card>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 text-red-700">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
 
       {/* User Table */}
       <Card padding="none">
@@ -86,7 +176,9 @@ const Users: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900">
             Danh sách người dùng
           </h2>
-          <Button size="sm">Thêm người dùng</Button>
+          <Button size="sm" variant="secondary" onClick={fetchUsers} loading={loading}>
+            Làm mới
+          </Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -102,7 +194,7 @@ const Users: React.FC = () => {
                   Vai trò
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trạng thái
+                  Ngày tạo
                 </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thao tác
@@ -118,7 +210,7 @@ const Users: React.FC = () => {
                         <User className="w-4 h-4 text-indigo-600" />
                       </div>
                       <span className="font-medium text-gray-900">
-                        {user.name}
+                        {user.full_name}
                       </span>
                     </div>
                   </td>
@@ -134,22 +226,31 @@ const Users: React.FC = () => {
                     </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge
-                      variant={user.status === "active" ? "success" : "default"}
-                      size="sm"
-                    >
-                      {user.status === "active"
-                        ? "Hoạt động"
-                        : "Không hoạt động"}
-                    </Badge>
+                    <span className="text-sm text-gray-600">
+                      {new Date(user.created_at).toLocaleString("vi-VN")}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button className="p-1 hover:bg-gray-100 rounded">
-                      <MoreVertical className="w-4 h-4 text-gray-400" />
-                    </button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => handleDeleteUser(user.id)}
+                      loading={deletingId === user.id}
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Xoá
+                    </Button>
                   </td>
                 </tr>
               ))}
+
+              {users.length === 0 && !loading && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                    Chưa có người dùng nào
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
