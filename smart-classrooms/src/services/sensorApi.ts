@@ -1,27 +1,47 @@
 import api from "./api";
-import type { SensorHistory, ApiResponse } from "../types";
+import type { SensorHistory } from "../types";
 
-export interface SensorHistoryResponse {
-  history: SensorHistory[];
-  total: number;
+interface BackendSensorReading {
+  id: number;
+  room_id: number;
+  temperature: number | null;
+  humidity: number | null;
+  co2: number | null;
+  recorded_at: string;
 }
 
+const DEFAULT_ROOM_ID = 1;
+
 export const sensorApi = {
-  // Get sensor history
-  getHistory: async (limit?: number): Promise<SensorHistory[]> => {
+  getHistory: async (
+    roomId: number = DEFAULT_ROOM_ID,
+    limit?: number,
+  ): Promise<SensorHistory[]> => {
     const params = limit ? { limit } : {};
-    const response = await api.get<ApiResponse<SensorHistoryResponse>>(
-      "/api/sensors/history",
+    const response = await api.get<BackendSensorReading[]>(
+      `/api/v1/sensors/${roomId}/history`,
       { params },
     );
-    return response.data.data.history;
+
+    return response.data.map((item) => ({
+      id: String(item.id),
+      temp: item.temperature ?? 0,
+      humidity: item.humidity ?? 0,
+      co2: item.co2 ?? 800,
+      timestamp: item.recorded_at,
+    }));
   },
 
-  // Get current sensor data
-  getCurrent: async () => {
-    const response = await api.get<
-      ApiResponse<{ temp: number; humidity: number }>
-    >("/api/sensors/current");
-    return response.data.data;
+  getCurrent: async (roomId: number = DEFAULT_ROOM_ID) => {
+    const response = await api.get<BackendSensorReading>(
+      `/api/v1/sensors/${roomId}/latest`,
+    );
+
+    return {
+      temp: response.data.temperature ?? 0,
+      humidity: response.data.humidity ?? 0,
+      co2: response.data.co2 ?? 800,
+      timestamp: response.data.recorded_at,
+    };
   },
 };

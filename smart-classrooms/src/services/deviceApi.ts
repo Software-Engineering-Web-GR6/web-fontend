@@ -1,42 +1,90 @@
 import api from "./api";
-import type { Device, DeviceControl, ApiResponse } from "../types";
+import type { Device } from "../types";
 
-export interface DeviceControlResponse {
-  device: Device;
-  success: boolean;
+interface BackendDevice {
+  id: number;
+  room_id: number;
+  name: string;
+  device_type: string;
+  state: string;
+  last_updated: string;
 }
 
+const DEFAULT_ROOM_ID = 1;
+
+const mapBackendTypeToFrontend = (deviceType: string): Device["type"] => {
+  if (deviceType === "air_conditioner") {
+    return "ac";
+  }
+  if (deviceType === "window") {
+    return "light";
+  }
+  return "fan";
+};
+
+const mapBackendDevice = (device: BackendDevice): Device => ({
+  id: String(device.id),
+  name: device.name,
+  type: mapBackendTypeToFrontend(device.device_type),
+  status: ["ON", "OPEN"].includes(device.state.toUpperCase()),
+  lastUpdated: device.last_updated,
+});
+
 export const deviceApi = {
-  // Get all devices
-  getAll: async (): Promise<Device[]> => {
-    const response = await api.get<ApiResponse<Device[]>>("/api/devices");
-    return response.data.data;
+  getAll: async (roomId: number = DEFAULT_ROOM_ID): Promise<Device[]> => {
+    const response = await api.get<BackendDevice[]>(`/api/v1/devices/${roomId}`);
+    return response.data.map(mapBackendDevice);
   },
 
-  // Control device
   control: async (
     deviceId: string,
     action: "turnOn" | "turnOff",
+    roomId: number = DEFAULT_ROOM_ID,
   ): Promise<Device> => {
-    const response = await api.post<ApiResponse<DeviceControlResponse>>(
-      "/api/device/control",
-      {
-        deviceId,
-        action,
-      } as DeviceControl,
+    const listResponse = await api.get<BackendDevice[]>(`/api/v1/devices/${roomId}`);
+    const devices = listResponse.data;
+
+    const target =
+      /^\d+$/.test(deviceId)
+        ? devices.find((item) => item.id === Number(deviceId))
+        : devices.find((item) => {
+          if (deviceId === "fan") {
+            return item.device_type === "fan";
+          }
+          if (deviceId === "ac") {
+            return item.device_type === "air_conditioner";
+          }
+          if (deviceId === "light") {
+            return item.device_type === "window";
+          }
+          return false;
+        });
+
+    if (!target) {
+      throw new Error("Device not found");
+    }
+
+    const backendAction =
+      target.device_type === "window"
+        ? action === "turnOn"
+          ? "OPEN"
+          : "CLOSE"
+        : action === "turnOn"
+          ? "ON"
+          : "OFF";
+
+    const response = await api.post<BackendDevice>(
+      `/api/v1/devices/${target.id}/control`,
+      { action: backendAction },
     );
-    return response.data.data.device;
+
+    return mapBackendDevice(response.data);
   },
 
-  // Control fan specifically
-  controlFan: async (action: "turnOn" | "turnOff"): Promise<Device> => {
-    const response = await api.post<ApiResponse<DeviceControlResponse>>(
-      "/api/device/control",
-      {
-        deviceId: "fan",
-        action,
-      } as DeviceControl,
-    );
-    return response.data.data.device;
+  controlFan: async (
+    action: "turnOn" | "turnOff",
+    roomId: number = DEFAULT_ROOM_ID,
+  ): Promise<Device> => {
+    return deviceApi.control("fan", action, roomId);
   },
 };

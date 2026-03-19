@@ -1,8 +1,8 @@
 // Constants
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001";
+  import.meta.env.VITE_API_URL || "http://localhost:8000";
 export const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL || "http://localhost:3001";
+  import.meta.env.VITE_SOCKET_URL || "ws://localhost:8000/ws/alerts";
 
 // Sensor Constants
 export const DEFAULT_TEMP = 25;

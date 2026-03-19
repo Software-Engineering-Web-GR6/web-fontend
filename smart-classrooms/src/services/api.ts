@@ -28,9 +28,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url ?? "";
+    const isLoginRequest = requestUrl.includes("/api/v1/auth/login");
+
+    if (status === 401 && !isLoginRequest) {
       // Handle unauthorized
       localStorage.removeItem("token");
+      localStorage.removeItem("role");
       window.location.href = "/login";
     }
     return Promise.reject(error);

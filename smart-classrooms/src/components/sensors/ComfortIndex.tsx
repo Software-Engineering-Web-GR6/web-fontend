@@ -1,14 +1,40 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Smile, Meh, Frown, AlertTriangle } from "lucide-react";
 import { useSensorStore } from "../../store";
-import { calculateComfortIndex } from "../../utils/thresholdLogic";
+import { calculateComfortIndexV2 } from "../../utils/thresholdLogic";
 import Card from "../ui/Card";
 import { CHART_COLORS } from "../../utils/constants";
 
 export const ComfortIndex: React.FC = () => {
-  const { temp, humidity } = useSensorStore();
+  const { temp, humidity, co2, history } = useSensorStore();
 
-  const { level, value } = calculateComfortIndex(temp, humidity);
+  const { smoothedTemp, smoothedHumidity, smoothedCo2 } = useMemo(() => {
+    const windowSize = 5;
+    const recent = history.slice(-windowSize);
+
+    if (recent.length === 0) {
+      return { smoothedTemp: temp, smoothedHumidity: humidity, smoothedCo2: co2 };
+    }
+
+    const avgTemp =
+      recent.reduce((sum, item) => sum + item.temp, 0) / recent.length;
+    const avgHumidity =
+      recent.reduce((sum, item) => sum + item.humidity, 0) / recent.length;
+    const avgCo2 = recent.reduce((sum, item) => sum + item.co2, 0) / recent.length;
+
+    return {
+      smoothedTemp: avgTemp,
+      smoothedHumidity: avgHumidity,
+      smoothedCo2: avgCo2,
+    };
+  }, [history, temp, humidity, co2]);
+
+  const { level, value, breakdown } = calculateComfortIndexV2(
+    smoothedTemp,
+    smoothedHumidity,
+    smoothedCo2,
+  );
+  const displayValue = Math.round(value);
 
   const config = {
     comfortable: {
@@ -46,6 +72,13 @@ export const ComfortIndex: React.FC = () => {
       bgColor: "bg-yellow-50",
       borderColor: "border-yellow-200",
     },
+    too_stale: {
+      icon: Frown,
+      label: "Không khí ngột ngạt",
+      color: CHART_COLORS.danger,
+      bgColor: "bg-red-50",
+      borderColor: "border-red-200",
+    },
   };
 
   const current = config[level];
@@ -53,9 +86,9 @@ export const ComfortIndex: React.FC = () => {
 
   // Calculate progress bar color
   const getProgressColor = () => {
-    if (value >= 80) return "bg-green-500";
-    if (value >= 60) return "bg-yellow-500";
-    if (value >= 40) return "bg-orange-500";
+    if (displayValue >= 80) return "bg-green-500";
+    if (displayValue >= 60) return "bg-yellow-500";
+    if (displayValue >= 40) return "bg-orange-500";
     return "bg-red-500";
   };
 
@@ -71,7 +104,7 @@ export const ComfortIndex: React.FC = () => {
               className="text-4xl font-bold"
               style={{ color: current.color }}
             >
-              {value}
+              {displayValue}
             </span>
             <span className="text-lg text-gray-400">/100</span>
           </div>
@@ -89,7 +122,7 @@ export const ComfortIndex: React.FC = () => {
         <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
           <div
             className={`h-full ${getProgressColor()} transition-all duration-500 ease-out`}
-            style={{ width: `${value}%` }}
+            style={{ width: `${displayValue}%` }}
           />
         </div>
       </div>
@@ -105,8 +138,12 @@ export const ComfortIndex: React.FC = () => {
 
       {/* Info */}
       <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-500">
+        <p>Điểm nhiệt: {breakdown.thermalScore}/100</p>
+        <p>Điểm CO₂: {breakdown.co2Score}/100</p>
+        <p>CO₂ trung bình: {Math.round(smoothedCo2)} ppm</p>
         <p>Nhiệt độ tối ưu: 20-26°C</p>
         <p>Độ ẩm tối ưu: 40-60%</p>
+        <p>CO₂ tốt: ≤ 800 ppm</p>
       </div>
     </Card>
   );
