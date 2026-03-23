@@ -1,15 +1,15 @@
 import React from "react";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
-  LayoutDashboard,
-  Settings,
   Bell,
-  Monitor,
-  Users,
   Fan,
   History,
+  LayoutDashboard,
   LogOut,
+  Monitor,
+  Settings,
+  Users,
 } from "lucide-react";
 import { useAuthStore } from "../../store/authStore";
 
@@ -18,12 +18,11 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
 
   const adminLinks = [
-    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Tổng quan" },
     { path: "/admin/alerts", icon: Bell, label: "Cảnh báo" },
     { path: "/admin/devices", icon: Fan, label: "Thiết bị" },
     { path: "/admin/users", icon: Users, label: "Người dùng" },
@@ -31,7 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
   ];
 
   const userLinks = [
-    { path: "/user/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/user/dashboard", icon: LayoutDashboard, label: "Tổng quan" },
     { path: "/user/history", icon: History, label: "Lịch sử" },
     { path: "/user/alerts", icon: Bell, label: "Cảnh báo" },
   ];
@@ -44,81 +43,76 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-full flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-gray-200">
+    <aside className="flex h-full w-72 flex-col border-r border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]">
+      <div className="border-b border-slate-200 px-6 py-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <Monitor className="w-6 h-6 text-white" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-600/20">
+            <Monitor className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">SmartClass</h1>
-            <p className="text-xs text-gray-500">Classroom Dashboard</p>
+            <h1 className="text-lg font-bold text-slate-900">SmartClass</h1>
+            <p className="text-xs text-slate-500">Hệ thống lớp học thông minh</p>
           </div>
         </div>
       </div>
 
-      {/* User Info */}
       {user && (
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
-              {user.fullName?.charAt(0) ||
-                user.username.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user.fullName || user.username}
-              </p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
-              <span
-                className={clsx(
-                  "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mt-1",
-                  user.role === "admin"
-                    ? "bg-purple-100 text-purple-700"
-                    : "bg-blue-100 text-blue-700",
-                )}
-              >
-                {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
-              </span>
+        <div className="border-b border-slate-200 px-5 py-5">
+          <div className="rounded-3xl bg-slate-50 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-base font-semibold text-white">
+                {(user.fullName || user.username).charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">
+                  {user.fullName || user.username}
+                </p>
+                <p className="truncate text-xs text-slate-500">{user.email}</p>
+                <span
+                  className={clsx(
+                    "mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium",
+                    user.role === "admin"
+                      ? "bg-indigo-100 text-indigo-700"
+                      : "bg-sky-100 text-sky-700",
+                  )}
+                >
+                  {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 space-y-1 px-4 py-5">
         {links.map((link) => {
           const Icon = link.icon;
-          const isActive = location.pathname === link.path;
-
           return (
             <NavLink
               key={link.path}
               to={link.path}
-              className={clsx(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-700 hover:bg-gray-50",
-              )}
+              className={({ isActive }) =>
+                clsx(
+                  "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition",
+                  isActive
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                )
+              }
             >
-              <Icon
-                className={clsx("w-5 h-5", isActive && "text-indigo-600")}
-              />
+              <Icon className="h-5 w-5" />
               {link.label}
             </NavLink>
           );
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="border-t border-slate-200 p-4">
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+          className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-slate-600 transition hover:bg-rose-50 hover:text-rose-600"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="h-5 w-5" />
           Đăng xuất
         </button>
       </div>

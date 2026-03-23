@@ -5,10 +5,14 @@ import { useDeviceControl } from "../../hooks";
 
 interface FanControlProps {
   disabled?: boolean;
+  roomId?: number;
 }
 
-export const FanControl: React.FC<FanControlProps> = ({ disabled = false }) => {
-  const { fanOn, toggleFan, loading } = useDeviceControl();
+export const FanControl: React.FC<FanControlProps> = ({
+  disabled = false,
+  roomId = 1,
+}) => {
+  const { fanOn, toggleFan, loading } = useDeviceControl(roomId);
 
   return (
     <DeviceCard
@@ -19,7 +23,7 @@ export const FanControl: React.FC<FanControlProps> = ({ disabled = false }) => {
       disabled={disabled || loading}
       icon={
         <Fan
-          className={`w-6 h-6 ${fanOn ? "animate-spin" : ""}`}
+          className={`h-6 w-6 ${fanOn ? "animate-spin" : ""}`}
           style={{ animationDuration: "2s" }}
         />
       }
