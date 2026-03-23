@@ -54,21 +54,21 @@ const Login: React.FC = () => {
               </div>
               <div>
                 <p className="font-semibold text-slate-900">SmartClass</p>
-                <p className="text-xs text-slate-500">Hệ thống quản lý lớp học thông minh</p>
+                <p className="text-xs text-slate-500">He thong quan ly lop hoc thong minh</p>
               </div>
             </div>
 
             <div className="max-w-xl">
               <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/75 px-4 py-2 text-sm font-medium text-indigo-700 shadow-sm">
                 <Sparkles className="h-4 w-4" />
-                Giao diện điều hành tập trung cho phòng học thông minh
+                Giao dien dieu hanh tap trung cho phong hoc thong minh
               </p>
               <h1 className="text-5xl font-bold leading-tight text-slate-900">
-                Quản lý tòa nhà, phòng học và thiết bị theo thời gian thực.
+                Quan ly toa nha, phong hoc va thiet bi theo thoi gian thuc.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
-                Đăng nhập để theo dõi dữ liệu cảm biến, cấu hình tự động hóa và phân quyền theo ca học
-                trên cùng một hệ thống thống nhất.
+                Dang nhap de theo doi du lieu cam bien, cau hinh tu dong hoa va phan quyen theo ca hoc
+                tren cung mot he thong thong nhat.
               </p>
             </div>
           </div>
@@ -76,16 +76,16 @@ const Login: React.FC = () => {
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <div className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-sm backdrop-blur">
               <ShieldCheck className="mb-3 h-8 w-8 text-emerald-600" />
-              <p className="font-semibold text-slate-900">Phân quyền theo ca</p>
+              <p className="font-semibold text-slate-900">Phan quyen theo ca</p>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Quản lý quyền truy cập theo tòa, phòng, ngày trong tuần và từng ca học.
+                Quan ly quyen truy cap theo toa, phong, ngay trong tuan va tung ca hoc.
               </p>
             </div>
             <div className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-sm backdrop-blur">
               <Sparkles className="mb-3 h-8 w-8 text-indigo-600" />
-              <p className="font-semibold text-slate-900">Tự động hóa linh hoạt</p>
+              <p className="font-semibold text-slate-900">Tu dong hoa linh hoat</p>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Chuyển đổi giữa chế độ tự động và thủ công với cấu hình ngưỡng trực quan.
+                Chuyen doi giua che do tu dong va thu cong voi cau hinh nguong truc quan.
               </p>
             </div>
           </div>
@@ -95,10 +95,10 @@ const Login: React.FC = () => {
           <div className="w-full max-w-lg rounded-[32px] border border-white/75 bg-white/85 p-8 shadow-2xl shadow-slate-200/70 backdrop-blur">
             <div className="mb-8 flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-indigo-600">Đăng nhập hệ thống</p>
-                <h2 className="mt-2 text-3xl font-bold text-slate-900">Chào mừng trở lại</h2>
+                <p className="text-sm font-medium text-indigo-600">Dang nhap he thong</p>
+                <h2 className="mt-2 text-3xl font-bold text-slate-900">Chao mung tro lai</h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Nhập thông tin tài khoản để tiếp tục vào bảng điều khiển.
+                  Nhap thong tin tai khoan de tiep tuc vao bang dieu khien.
                 </p>
               </div>
               <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-indigo-600 shadow-lg shadow-indigo-600/20">
@@ -130,14 +130,14 @@ const Login: React.FC = () => {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">Mật khẩu</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Mat khau</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Nhập mật khẩu"
+                    placeholder="Nhap mat khau"
                     className="w-full rounded-2xl border border-slate-200 bg-white px-12 py-3.5 text-slate-900 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
                     required
                   />
@@ -156,7 +156,7 @@ const Login: React.FC = () => {
                 disabled={isLoading}
                 className="w-full rounded-2xl bg-indigo-600 px-4 py-3.5 font-semibold text-white transition hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isLoading ? "Đang đăng nhập..." : "Đăng nhập"}
+                {isLoading ? "Dang dang nhap..." : "Dang nhap"}
               </button>
             </form>
 
@@ -165,7 +165,7 @@ const Login: React.FC = () => {
                 <div className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="bg-white px-4 text-slate-400">Truy cập nhanh</span>
+                <span className="bg-white px-4 text-slate-400">Truy cap nhanh</span>
               </div>
             </div>
 
@@ -176,14 +176,14 @@ const Login: React.FC = () => {
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3.5 font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50"
             >
               <div className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
-              Đăng nhập nhanh bằng tài khoản admin demo
+              Dang nhap nhanh bang tai khoan admin demo
             </button>
 
             <div className="mt-7 rounded-3xl border border-slate-200 bg-slate-50 p-5">
-              <p className="mb-2 text-sm font-semibold text-slate-700">Tài khoản demo</p>
+              <p className="mb-2 text-sm font-semibold text-slate-700">Tai khoan demo</p>
               <div className="space-y-1 text-sm text-slate-500">
                 <p>Email: admin@example.com</p>
-                <p>Mật khẩu: admin123</p>
+                <p>Mat khau: admin123</p>
               </div>
             </div>
           </div>

@@ -1,43 +1,43 @@
 # Smart Classrooms Frontend
 
-Frontend React + Vite cho hệ thống Smart Classroom.
+Frontend React + Vite cho he thong Smart Classroom.
 
-## Tính năng chính
+## Tinh nang chinh
 
-- Đăng nhập bằng backend JWT
-- Giao diện admin và user tách riêng
-- Dashboard phân tầng theo `tòa -> tầng -> phòng`
-- User xem dữ liệu theo quyền `room + shift + day`
-- Dữ liệu sensor lấy từ API và realtime qua WebSocket
-- Cảnh báo lấy từ backend và hiển thị qua chuông thông báo
-- Quản lý rules tự động hóa trong phần cài đặt
-- Quản lý thiết bị theo nhóm và theo từng thiết bị
-- Đồng bộ chế độ `tự động / thủ công` theo từng phòng
-- Hồ sơ tài khoản và đổi mật khẩu
+- Dang nhap bang backend JWT
+- Giao dien admin va user tach rieng
+- Dashboard phan tang theo `toa -> tang -> phong`
+- User xem du lieu theo quyen `room + shift + day`
+- Du lieu sensor lay tu API va realtime qua WebSocket
+- Canh bao lay tu backend va hien thi qua chuong thong bao
+- Quan ly rules tu dong hoa trong phan cai dat
+- Quan ly thiet bi theo nhom va theo tung thiet bi
+- Dong bo che do `tu dong / thu cong` theo tung phong
+- Ho so tai khoan va doi mat khau
 
-## Yêu cầu
+## Yeu cau
 
 - Node.js 18+
 - npm
 
-## Chạy frontend
+## Chay frontend
 
-### Cách nhanh trên Windows
+### Cach nhanh tren Windows
 
-PowerShell có thể chặn `npm.ps1`, nên có thể dùng script có sẵn:
+PowerShell co the chan `npm.ps1`, nen co the dung script co san:
 
 ```powershell
 cd e:\baitapCNPM\frontend\smart-classrooms
 .\run-dev.cmd
 ```
 
-Script này sẽ:
+Script nay se:
 
-- dùng `npm.cmd`
-- tự cài dependencies nếu thiếu
-- chạy Vite tại `http://127.0.0.1:5173`
+- dung `npm.cmd`
+- tu cai dependencies neu thieu
+- chay Vite tai `http://127.0.0.1:5173`
 
-### Chạy thủ công
+### Chay thu cong
 
 CMD:
 
@@ -47,7 +47,7 @@ npm install
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-Nếu đã cài môi trường rồi:
+Neu da cai moi truong roi:
 
 ```cmd
 cd /d e:\baitapCNPM\frontend\smart-classrooms
@@ -69,32 +69,34 @@ cd /d e:\baitapCNPM\frontend\smart-classrooms
 npm.cmd run build
 ```
 
-## Kết nối backend
+## Ket noi backend
 
-Frontend mặc định dùng:
+Frontend mac dinh dung:
 
 - API: `http://127.0.0.1:8000`
 - WebSocket: `ws://127.0.0.1:8000/ws/alerts`
 
-Có thể override bằng `.env`:
+Co the override bang file `.env`:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8000
 VITE_SOCKET_URL=ws://127.0.0.1:8000/ws/alerts
 ```
 
-## Tài khoản demo
+Repo nay da co file `.env.example`. Moi nguoi trong nhom chi can copy thanh `.env` neu can doi host hoac port.
 
-Nếu backend đang seed mặc định:
+## Tai khoan demo
+
+Neu backend dang seed mac dinh:
 
 - Email: `admin@example.com`
 - Password: `admin123`
 
-## Luồng chạy đầy đủ
+## Luong chay day du
 
-1. Chạy backend
-2. Chạy frontend
-3. Chạy simulator nếu muốn có dữ liệu cảm biến tự động
+1. Chay backend
+2. Chay frontend
+3. Chay simulator neu muon co du lieu cam bien tu dong
 
 Backend docs:
 
@@ -104,7 +106,7 @@ Frontend local:
 
 - `http://127.0.0.1:5173`
 
-## Cấu trúc chính
+## Cau truc chinh
 
 ```text
 smart-classrooms/
@@ -114,7 +116,7 @@ smart-classrooms/
 |   |-- App.tsx                     # Root component
 |   |-- components/                 # UI components
 |   |-- hooks/                      # Custom hooks
-|   |-- pages/                      # Trang admin và user
+|   |-- pages/                      # Trang admin va user
 |   |-- routes/                     # Route config
 |   |-- services/                   # API, socket, backend services
 |   |-- store/                      # Zustand state

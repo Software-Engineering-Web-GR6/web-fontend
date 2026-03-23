@@ -32,7 +32,7 @@ export const useAuthStore = create<AuthState>()(
             error:
               error.response?.data?.detail ||
               error.response?.data?.message ||
-              "Đăng nhập thất bại",
+              "Dang nhap that bai",
           });
           throw error;
         }
