@@ -125,14 +125,3 @@ smart-classrooms/
 |-- tsconfig.json
 `-- vite.config.ts
 ```
-
-## Ghi chú
-
-- `npx tsc --noEmit` đang pass trong workspace local.
-- Nếu sửa lớn phần thiết bị hoặc phân quyền, nên test lại các luồng:
-- admin dashboard
-- admin users
-- admin devices
-- admin settings
-- user dashboard
-- user alerts/history
