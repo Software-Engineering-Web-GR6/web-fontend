@@ -21,6 +21,10 @@ export const useSensorStore = create<SensorState>((set, get) => ({
     });
   },
 
+  setHistory: (history: SensorHistory[]) => {
+    set({ history });
+  },
+
   addHistory: (data: SensorHistory) => {
     const { history } = get();
     const newHistory = [...history, data];
@@ -33,5 +37,15 @@ export const useSensorStore = create<SensorState>((set, get) => ({
 
   setConnected: (connected: boolean) => {
     set({ isConnected: connected });
+  },
+
+  reset: () => {
+    set({
+      temp: DEFAULT_TEMP,
+      humidity: DEFAULT_HUMIDITY,
+      co2: 800,
+      history: [],
+      isConnected: false,
+    });
   },
 }));

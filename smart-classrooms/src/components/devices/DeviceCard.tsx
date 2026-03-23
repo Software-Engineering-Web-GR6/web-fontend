@@ -1,10 +1,11 @@
-import React from 'react';
-import Card from '../ui/Card';
-import Badge from '../ui/Badge';
+import React from "react";
+import Card from "../ui/Card";
+import Badge from "../ui/Badge";
+import type { DeviceType } from "../../types";
 
 interface DeviceCardProps {
   name: string;
-  type: 'fan' | 'window' | 'light' | 'ac';
+  type: DeviceType;
   status: boolean;
   onToggle?: () => void;
   disabled?: boolean;
@@ -13,7 +14,6 @@ interface DeviceCardProps {
 
 export const DeviceCard: React.FC<DeviceCardProps> = ({
   name,
-  type,
   status,
   onToggle,
   disabled = false,
@@ -24,16 +24,16 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
-              status ? 'bg-indigo-100' : 'bg-gray-100'
+            className={`flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${
+              status ? "bg-indigo-100" : "bg-gray-100"
             }`}
           >
-            <div className={status ? 'text-indigo-600' : 'text-gray-400'}>{icon}</div>
+            <div className={status ? "text-indigo-600" : "text-gray-400"}>{icon}</div>
           </div>
           <div>
             <h3 className="font-semibold text-gray-900">{name}</h3>
-            <Badge variant={status ? 'success' : 'default'} size="sm">
-              {status ? 'Đang bật' : 'Đã tắt'}
+            <Badge variant={status ? "success" : "default"} size="sm">
+              {status ? "Đang bật" : "Đã tắt"}
             </Badge>
           </div>
         </div>
@@ -41,12 +41,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
           onClick={onToggle}
           disabled={disabled}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-            status ? 'bg-indigo-600' : 'bg-gray-200'
-          } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            status ? "bg-indigo-600" : "bg-gray-200"
+          } ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
         >
           <span
             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              status ? 'translate-x-6' : 'translate-x-1'
+              status ? "translate-x-6" : "translate-x-1"
             }`}
           />
         </button>
