@@ -1,73 +1,138 @@
-# React + TypeScript + Vite
+# Smart Classrooms Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend React + Vite cho hệ thống Smart Classroom.
 
-Currently, two official plugins are available:
+## Tính năng chính
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Đăng nhập bằng backend JWT
+- Giao diện admin và user tách riêng
+- Dashboard phân tầng theo `tòa -> tầng -> phòng`
+- User xem dữ liệu theo quyền `room + shift + day`
+- Dữ liệu sensor lấy từ API và realtime qua WebSocket
+- Cảnh báo lấy từ backend và hiển thị qua chuông thông báo
+- Quản lý rules tự động hóa trong phần cài đặt
+- Quản lý thiết bị theo nhóm và theo từng thiết bị
+- Đồng bộ chế độ `tự động / thủ công` theo từng phòng
+- Hồ sơ tài khoản và đổi mật khẩu
 
-## React Compiler
+## Yêu cầu
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Node.js 18+
+- npm
 
-## Expanding the ESLint configuration
+## Chạy frontend
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Cách nhanh trên Windows
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+PowerShell có thể chặn `npm.ps1`, nên có thể dùng script có sẵn:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+cd e:\baitapCNPM\frontend\smart-classrooms
+.\run-dev.cmd
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Script này sẽ:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- dùng `npm.cmd`
+- tự cài dependencies nếu thiếu
+- chạy Vite tại `http://127.0.0.1:5173`
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Chạy thủ công
+
+CMD:
+
+```cmd
+cd /d e:\baitapCNPM\frontend\smart-classrooms
+npm install
+npm run dev -- --host 127.0.0.1 --port 5173
 ```
+
+Nếu đã cài môi trường rồi:
+
+```cmd
+cd /d e:\baitapCNPM\frontend\smart-classrooms
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+PowerShell:
+
+```powershell
+cd e:\baitapCNPM\frontend\smart-classrooms
+cmd /c npm install
+cmd /c npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+## Build production
+
+```cmd
+cd /d e:\baitapCNPM\frontend\smart-classrooms
+npm.cmd run build
+```
+
+## Kết nối backend
+
+Frontend mặc định dùng:
+
+- API: `http://127.0.0.1:8000`
+- WebSocket: `ws://127.0.0.1:8000/ws/alerts`
+
+Có thể override bằng `.env`:
+
+```env
+VITE_API_URL=http://127.0.0.1:8000
+VITE_SOCKET_URL=ws://127.0.0.1:8000/ws/alerts
+```
+
+## Tài khoản demo
+
+Nếu backend đang seed mặc định:
+
+- Email: `admin@example.com`
+- Password: `admin123`
+
+## Luồng chạy đầy đủ
+
+1. Chạy backend
+2. Chạy frontend
+3. Chạy simulator nếu muốn có dữ liệu cảm biến tự động
+
+Backend docs:
+
+- `http://127.0.0.1:8000/docs`
+
+Frontend local:
+
+- `http://127.0.0.1:5173`
+
+## Cấu trúc chính
+
+```text
+smart-classrooms/
+|-- public/
+|-- src/
+|   |-- main.tsx                    # Entry point
+|   |-- App.tsx                     # Root component
+|   |-- components/                 # UI components
+|   |-- hooks/                      # Custom hooks
+|   |-- pages/                      # Trang admin và user
+|   |-- routes/                     # Route config
+|   |-- services/                   # API, socket, backend services
+|   |-- store/                      # Zustand state
+|   |-- types/                      # TypeScript types
+|   |-- utils/                      # Helper functions
+|   `-- styles/                     # Theme, CSS globals
+|-- package.json
+|-- tsconfig.json
+`-- vite.config.ts
+```
+
+## Ghi chú
+
+- `npx tsc --noEmit` đang pass trong workspace local.
+- Nếu sửa lớn phần thiết bị hoặc phân quyền, nên test lại các luồng:
+- admin dashboard
+- admin users
+- admin devices
+- admin settings
+- user dashboard
+- user alerts/history
