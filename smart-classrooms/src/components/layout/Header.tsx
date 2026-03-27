@@ -53,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   };
 
   return (
-    <header className="border-b border-slate-200 bg-white/85 px-6 py-5 backdrop-blur">
+    <header className="relative z-40 border-b border-slate-200 bg-white/85 px-6 py-5 backdrop-blur">
       <div className="flex items-center justify-between gap-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">{title}</h1>

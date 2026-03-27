@@ -1,12 +1,33 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Building2, Check, Layers3, Mail, Plus, Trash2, UserRound } from "lucide-react";
+import {
+  AlertCircle,
+  Building2,
+  CalendarDays,
+  Check,
+  Clock3,
+  Layers3,
+  Mail,
+  MapPin,
+  Plus,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import Layout from "../../components/layout/Layout";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import { authApi, roomApi } from "../../services";
-import { buildRoomHierarchy, DAYS, getDayLabel, getRoomLabel, getShiftLabel, getShiftTime, SHIFTS } from "../../utils";
-import type { Room, UserRoomAccess } from "../../types";
+import {
+  buildRoomHierarchy,
+  DAYS,
+  getDayLabel,
+  getRoomLabel,
+  getShiftLabel,
+  getShiftTime,
+  normalizeRoom,
+  SHIFTS,
+} from "../../utils";
+import type { Room, UserScheduleEntry } from "../../types";
 
 type AdminUserRow = {
   id: number;
@@ -22,12 +43,13 @@ const Users: React.FC = () => {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [accesses, setAccesses] = useState<UserRoomAccess[]>([]);
-  const [roomOccupancy, setRoomOccupancy] = useState<UserRoomAccess[]>([]);
+  const [accesses, setAccesses] = useState<UserScheduleEntry[]>([]);
+  const [roomOccupancy, setRoomOccupancy] = useState<UserScheduleEntry[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedShift, setSelectedShift] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -65,19 +87,19 @@ const Users: React.FC = () => {
 
   const fetchAccesses = async (userId: number) => {
     try {
-      const data = await authApi.getUserRoomAccess(userId);
+      const data = await authApi.getUserSchedule(userId);
       setAccesses(data);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể tải quyền phòng."));
+      setError(getApiErrorMessage(err, "Không thể tải thời khóa biểu của người dùng."));
     }
   };
 
   const fetchRoomOccupancy = async (roomId: number) => {
     try {
-      const data = await authApi.getRoomOccupancy(roomId);
+      const data = await authApi.getRoomSchedule(roomId);
       setRoomOccupancy(data);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể tải lịch sử dụng phòng."));
+      setError(getApiErrorMessage(err, "Không thể tải thời khóa biểu hiện có của phòng."));
     }
   };
 
@@ -209,9 +231,9 @@ const Users: React.FC = () => {
     setError(null);
     try {
       if (currentAccess) {
-        await authApi.revokeRoomAccess(selectedUserId, selectedRoomId, shiftNumber, dayOfWeek);
+        await authApi.removeScheduleSlot(selectedUserId, selectedRoomId, shiftNumber, dayOfWeek);
       } else {
-        await authApi.grantRoomAccess(selectedUserId, {
+        await authApi.assignSchedule(selectedUserId, {
           room_id: selectedRoomId,
           shifts: [shiftNumber],
           days_of_week: [dayOfWeek],
@@ -220,51 +242,110 @@ const Users: React.FC = () => {
 
       await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể cập nhật phân quyền."));
+      setError(getApiErrorMessage(err, "Không thể cập nhật thời khóa biểu."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleRevokeAccess = async (access: UserRoomAccess) => {
+  const roomMap = useMemo(() => new Map(rooms.map((room) => [room.id, room])), [rooms]);
+
+  const scheduleEntriesBySlot = useMemo(
+    () =>
+      new Map(
+        accesses.map((access) => [
+          `${access.day_of_week}-${access.shift_number}`,
+          { access, room: roomMap.get(access.room_id) ?? null },
+        ]),
+      ),
+    [accesses, roomMap],
+  );
+
+  const selectedSlotOccupied = useMemo(() => {
+    if (!selectedRoomId || selectedDay === null || selectedShift === null) {
+      return false;
+    }
+    return occupiedSet.has(accessKey(selectedRoomId, selectedDay, selectedShift));
+  }, [occupiedSet, selectedDay, selectedRoomId, selectedShift]);
+
+  const selectedSlotMine = useMemo(() => {
+    if (!selectedRoomId || selectedDay === null || selectedShift === null) {
+      return false;
+    }
+    return myAccessSet.has(accessKey(selectedRoomId, selectedDay, selectedShift));
+  }, [myAccessSet, selectedDay, selectedRoomId, selectedShift]);
+
+  const selectedSlotEntry = useMemo(() => {
+    if (selectedDay === null || selectedShift === null) {
+      return null;
+    }
+    return scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
+  }, [scheduleEntriesBySlot, selectedDay, selectedShift]);
+
+  const handleAssignSelectedSlot = async () => {
+    if (selectedDay === null || selectedShift === null) {
+      setError("Hãy chọn một ô trên lịch trước.");
+      return;
+    }
+
+    if (!selectedRoomId) {
+      setError("Hãy chọn phòng học để xếp lịch.");
+      return;
+    }
+
     if (!selectedUserId) {
       return;
     }
+
+    const currentSlot = scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
+
+    if (currentSlot && currentSlot.access.room_id === selectedRoomId) {
+      setError("Ô này đã đang dùng đúng phòng bạn chọn.");
+      return;
+    }
+
     setSubmitting(true);
+    setError(null);
     try {
-      await authApi.revokeRoomAccess(
-        selectedUserId,
-        access.room_id,
-        access.shift_number,
-        access.day_of_week,
-      );
-      await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(access.room_id)]);
+      if (currentSlot) {
+        await authApi.removeScheduleSlot(
+          selectedUserId,
+          currentSlot.access.room_id,
+          currentSlot.access.shift_number,
+          currentSlot.access.day_of_week,
+        );
+      }
+
+      await authApi.assignSchedule(selectedUserId, {
+        room_id: selectedRoomId,
+        shifts: [selectedShift],
+        days_of_week: [selectedDay],
+      });
+
+      await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Thu hồi quyền thất bại."));
+      setError(getApiErrorMessage(err, "Không thể cập nhật thời khóa biểu."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const groupedAccesses = useMemo(() => {
-    const roomMap = new Map(rooms.map((room) => [room.id, room]));
-    return accesses
-      .slice()
-      .sort((left, right) =>
-        left.room_id - right.room_id ||
-        left.day_of_week - right.day_of_week ||
-        left.shift_number - right.shift_number,
-      )
-      .map((access) => ({
-        access,
-        room: roomMap.get(access.room_id) ?? null,
-      }));
-  }, [accesses, rooms]);
+  const syncSelectionToRoom = (roomId: number) => {
+    const room = rooms.find((item) => item.id === roomId);
+    if (!room) {
+      return;
+    }
+
+    const normalized = normalizeRoom(room);
+    setSelectedBuilding(normalized.building);
+    setSelectedFloor(normalized.floor);
+    setSelectedRoomId(room.id);
+  };
 
   return (
     <Layout
       title="Người dùng"
-      subtitle="Chọn từng tài khoản để xem và phân quyền phòng theo ngày, ca học"
+      subtitle="Mỗi người dùng có thời khóa biểu riêng, và quyền sử dụng phòng sẽ tự mở đúng theo ca đang diễn ra"
       isAdmin={true}
     >
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -375,7 +456,7 @@ const Users: React.FC = () => {
                   </button>
                   <div className="flex items-center gap-2">
                     <Button size="sm" onClick={() => setSelectedUserId(user.id)}>
-                      Phân quyền
+                      Xem TKB
                     </Button>
                     <Button
                       size="sm"
@@ -396,199 +477,251 @@ const Users: React.FC = () => {
         <Card className="rounded-3xl">
           <CardHeader>
             <CardTitle>
-              {selectedUser ? `Phân quyền cho ${selectedUser.full_name}` : "Phân quyền phòng"}
+              {selectedUser ? `Thời khóa biểu của ${selectedUser.full_name}` : "Thời khóa biểu người dùng"}
             </CardTitle>
           </CardHeader>
 
           {!selectedUser ? (
-            <p className="text-sm text-slate-500">Chọn một tài khoản ở bên trái để bắt đầu phân quyền.</p>
+            <p className="text-sm text-slate-500">Chọn một tài khoản ở bên trái để bắt đầu sắp lịch học hoặc lịch dạy.</p>
           ) : (
-            <div className="space-y-5">
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_0.9fr_1.1fr]">
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-slate-700">Bước 1: Chọn tòa</p>
-                  {hierarchy.map((item) => (
-                    <button
-                      key={item.key}
-                      onClick={() => setSelectedBuilding(item.key)}
-                      className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
-                        selectedBuilding === item.key
-                          ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      <Building2 className="h-5 w-5" />
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+                <div className="space-y-4">
+                  <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#ffffff_100%)] p-5">
+                    <div className="mb-4 flex items-start justify-between gap-4">
                       <div>
-                        <p className="font-semibold">{item.label}</p>
-                        <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
+                        <p className="text-lg font-semibold text-slate-900">Lịch cá nhân theo tuần</p>
+                        <p className="mt-1 text-sm text-slate-500">
+                          Bấm vào từng ô để chọn ca học, sau đó gán phòng ở bảng bên phải.
+                        </p>
                       </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-slate-700">Bước 2: Chọn tầng</p>
-                  {!building ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                      Chưa chọn tòa.
-                    </div>
-                  ) : (
-                    building.floors.map((item) => (
-                      <button
-                        key={item.floor}
-                        onClick={() => setSelectedFloor(item.floor)}
-                        className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
-                          selectedFloor === item.floor
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                            : "border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        <Layers3 className="h-5 w-5" />
-                        <div>
-                          <p className="font-semibold">Tầng {item.floor}</p>
-                          <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
+                      <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
+                          <CalendarDays className="h-4 w-4" />
+                          Tuần chuẩn
                         </div>
-                      </button>
-                    ))
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold text-slate-700">Bước 3: Chọn phòng</p>
-                  {!floor ? (
-                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                      Chưa chọn tầng.
+                        <p className="mt-1 text-xs text-slate-500">T2 đến Chủ nhật</p>
+                      </div>
                     </div>
-                  ) : (
-                    floor.rooms.map((room) => (
-                      <button
-                        key={room.id}
-                        onClick={() => setSelectedRoomId(room.id)}
-                        className={`w-full rounded-2xl border px-4 py-3 text-left ${
-                          selectedRoomId === room.id
-                            ? "border-sky-300 bg-sky-50"
-                            : "border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
-                        <p className="mt-1 text-xs text-slate-500">{room.location}</p>
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
 
-              {!selectedRoom ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                  Chọn phòng để xem lịch ca.
-                </div>
-              ) : (
-                <>
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-700">
-                      Phòng đang phân quyền: {getRoomLabel(selectedRoom)}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      Ô trắng: chưa phân quyền. Ô xanh: đã phân quyền cho người đang chọn. Ô đỏ: đã có người khác sử dụng.
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Bước 4: Chọn ngày</p>
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-                      {DAYS.map((day) => {
-                        const hasAnySelected = SHIFTS.some((shift) =>
-                          myAccessSet.has(accessKey(selectedRoom.id, day.value, shift.value)),
-                        );
-                        return (
-                          <button
+                    <div className="overflow-x-auto">
+                      <div className="grid min-w-[860px] grid-cols-[110px_repeat(7,minmax(100px,1fr))] overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                        <div className="border-b border-r border-slate-200 bg-slate-50 px-4 py-4">
+                          <p className="text-sm font-semibold text-slate-900">Khung giờ</p>
+                          <p className="mt-1 text-xs text-slate-500">GMT+7</p>
+                        </div>
+                        {DAYS.map((day) => (
+                          <div
                             key={day.value}
-                            onClick={() => setSelectedDay(day.value)}
-                            className={`rounded-2xl border px-4 py-3 text-left ${
-                              selectedDay === day.value
-                                ? "border-indigo-300 bg-indigo-50"
-                                : hasAnySelected
-                                  ? "border-emerald-200 bg-emerald-50/60"
-                                  : "border-slate-200 bg-white"
+                            className={`border-b border-slate-200 px-3 py-4 text-center ${
+                              selectedDay === day.value ? "bg-indigo-50" : "bg-slate-50"
                             }`}
                           >
                             <p className="font-semibold text-slate-900">{day.label}</p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              {hasAnySelected ? "Đã có ca được cấp" : "Chưa có ca"}
+                            <p className="mt-1 text-xs text-slate-500">{day.shortLabel}</p>
+                          </div>
+                        ))}
+
+                        {SHIFTS.map((shift) => (
+                          <React.Fragment key={shift.value}>
+                            <div className="border-r border-slate-200 px-4 py-4">
+                              <div className="flex items-start gap-3">
+                                <Clock3 className="mt-0.5 h-4 w-4 text-slate-400" />
+                                <div>
+                                  <p className="font-semibold text-slate-900">{getShiftLabel(shift.value)}</p>
+                                  <p className="mt-1 text-xs text-slate-500">{shift.time}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {DAYS.map((day) => {
+                              const slot = scheduleEntriesBySlot.get(`${day.value}-${shift.value}`);
+                              const isSelected = selectedDay === day.value && selectedShift === shift.value;
+                              const room = slot?.room ?? null;
+
+                              return (
+                                <button
+                                  key={`${day.value}-${shift.value}`}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedDay(day.value);
+                                    setSelectedShift(shift.value);
+                                    if (room?.id) {
+                                      syncSelectionToRoom(room.id);
+                                    }
+                                  }}
+                                  className={`min-h-[136px] border-t border-slate-100 px-3 py-3 text-left align-top transition ${
+                                    isSelected
+                                      ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300"
+                                      : slot
+                                        ? "bg-emerald-50/70 hover:bg-emerald-50"
+                                        : "bg-white hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {slot ? (
+                                    <div className="flex h-full flex-col rounded-2xl border border-emerald-200 bg-white px-3 py-3 shadow-sm">
+                                      <div className="mb-2 rounded-xl bg-indigo-700 px-3 py-2 text-white">
+                                        <p className="text-sm font-semibold">{room ? getRoomLabel(room) : `Phòng ${slot.access.room_id}`}</p>
+                                        <p className="mt-1 text-[11px] text-indigo-100">{shift.time}</p>
+                                      </div>
+                                      <p className="line-clamp-2 text-sm font-medium text-slate-800">
+                                        {room?.location ?? "Đã xếp trong thời khóa biểu"}
+                                      </p>
+                                      <div className="mt-auto flex items-center justify-between pt-3 text-xs text-slate-500">
+                                        <span>{day.shortLabel}</span>
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
+                                          <Check className="h-3 w-3" />
+                                          Đã xếp
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-center">
+                                      <p className="text-sm font-semibold text-slate-500">Trống</p>
+                                      <p className="mt-1 text-xs text-slate-400">Chọn ô để xếp lịch</p>
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-700">Ô đang chọn</p>
+                    <p className="mt-2 text-base font-semibold text-slate-900">
+                      {selectedDay !== null && selectedShift !== null
+                        ? `${getDayLabel(selectedDay)} • ${getShiftLabel(selectedShift)}`
+                        : "Chưa chọn ô nào trên lịch"}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {selectedShift !== null ? getShiftTime(selectedShift) : "Hãy bấm vào một ô trong bảng lịch tuần."}
+                    </p>
+                    {selectedSlotEntry && (
+                      <div className="mt-3 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-600">
+                        Đang có lịch tại {selectedSlotEntry.room ? getRoomLabel(selectedSlotEntry.room) : `Phòng ${selectedSlotEntry.access.room_id}`}.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-sm font-semibold text-slate-700">Chọn tòa</p>
+                    <div className="space-y-3">
+                      {hierarchy.map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => setSelectedBuilding(item.key)}
+                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
+                            selectedBuilding === item.key
+                              ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                              : "border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          <Building2 className="h-5 w-5" />
+                          <div>
+                            <p className="font-semibold">{item.label}</p>
+                            <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-sm font-semibold text-slate-700">Chọn tầng</p>
+                    {!building ? (
+                      <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
+                        Chưa chọn tòa.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {building.floors.map((item) => (
+                          <button
+                            key={item.floor}
+                            onClick={() => setSelectedFloor(item.floor)}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
+                              selectedFloor === item.floor
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <Layers3 className="h-5 w-5" />
+                            <div>
+                              <p className="font-semibold">Tầng {item.floor}</p>
+                              <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                    <p className="mb-3 text-sm font-semibold text-slate-700">Chọn phòng học</p>
+                    {!floor ? (
+                      <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
+                        Chưa chọn tầng.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {floor.rooms.map((room) => (
+                          <button
+                            key={room.id}
+                            onClick={() => setSelectedRoomId(room.id)}
+                            className={`w-full rounded-2xl border px-4 py-3 text-left ${
+                              selectedRoomId === room.id
+                                ? "border-sky-300 bg-sky-50"
+                                : "border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
+                            <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                              <MapPin className="h-3.5 w-3.5" />
+                              {room.location}
                             </p>
                           </button>
-                        );
-                      })}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {selectedDay !== null && (
-                    <div>
-                      <p className="mb-3 text-sm font-semibold text-slate-700">
-                        Bước 5: Chọn ca của {getDayLabel(selectedDay)}
-                      </p>
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        {SHIFTS.map((shift) => {
-                          const key = accessKey(selectedRoom.id, selectedDay, shift.value);
-                          const isMine = myAccessSet.has(key);
-                          const isOccupied = occupiedSet.has(key);
-
-                          return (
-                            <button
-                              key={shift.value}
-                              onClick={() => handleSlotToggle(selectedDay, shift.value)}
-                              disabled={isOccupied || submitting}
-                              className={`rounded-3xl border px-4 py-4 text-left transition ${
-                                isOccupied
-                                  ? "border-rose-200 bg-rose-50 text-rose-700"
-                                  : isMine
-                                    ? "border-emerald-300 bg-emerald-100 text-emerald-800"
-                                    : "border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50"
-                              } ${submitting ? "opacity-60" : ""}`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="font-semibold">{getShiftLabel(shift.value)}</p>
-                                  <p className="mt-1 text-sm">{getShiftTime(shift.value)}</p>
-                                </div>
-                                {isMine && <Check className="h-5 w-5" />}
-                              </div>
-                              <p className="mt-3 text-xs font-medium">
-                                {isOccupied ? "Đã có người khác sử dụng" : isMine ? "Đã phân quyền, bấm lại để bỏ chọn" : "Chưa chọn"}
-                              </p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              <div className="border-t border-slate-200 pt-5">
-                <h3 className="mb-3 text-sm font-semibold text-slate-900">Quyền hiện có của tài khoản này</h3>
-                {groupedAccesses.length === 0 ? (
-                  <p className="text-sm text-slate-500">Tài khoản này hiện chưa được phân quyền ca học nào.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {groupedAccesses.map(({ access, room }) => (
-                      <div
-                        key={access.id}
-                        className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-4"
+                  <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eef2ff_0%,#f8fafc_100%)] p-4">
+                    <p className="text-sm font-semibold text-slate-700">Gán lịch cho ô đang chọn</p>
+                    <p className="mt-2 text-sm text-slate-500">
+                      {selectedRoom
+                        ? `Phòng đang chọn: ${getRoomLabel(selectedRoom)}`
+                        : "Hãy chọn phòng học trước khi gán lịch."}
+                    </p>
+                    <div className="mt-4 grid grid-cols-1 gap-3">
+                      <Button
+                        onClick={handleAssignSelectedSlot}
+                        loading={submitting}
+                        disabled={!selectedRoomId || selectedDay === null || selectedShift === null || selectedSlotOccupied}
+                        className="rounded-2xl"
                       >
-                        <div>
-                          <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
-                          <p className="mt-1 text-sm text-slate-500">
-                            {getDayLabel(access.day_of_week)} • {getShiftLabel(access.shift_number)} • {getShiftTime(access.shift_number)}
-                          </p>
-                        </div>
-                        <Button size="sm" variant="danger" onClick={() => handleRevokeAccess(access)}>
-                          Thu hồi
-                        </Button>
-                      </div>
-                    ))}
+                        {selectedSlotMine
+                          ? "Thay đổi lịch TKB"
+                          : selectedSlotEntry
+                            ? "Thay đổi lịch TKB"
+                            : "Thêm vào TKB"}
+                      </Button>
+                    </div>
+                    <div className="mt-4 space-y-2 text-xs text-slate-500">
+                      <p>
+                        {selectedSlotOccupied
+                          ? "Khung giờ này của phòng đang chọn đã thuộc về người khác."
+                          : selectedSlotEntry
+                            ? "Ô đang chọn đã có lịch. Chọn phòng khác rồi bấm nút trên để cập nhật lịch."
+                            : "Ô đang chọn chưa có lịch. Chọn phòng rồi bấm nút trên để thêm vào thời khóa biểu."}
+                      </p>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           )}

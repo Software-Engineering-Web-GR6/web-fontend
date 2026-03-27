@@ -18,6 +18,7 @@ export const useDeviceControl = (roomId: number = 1) => {
     setLastUpdated,
   } = useDeviceStore();
   const [loading, setLoading] = useState(false);
+  const [loadingTarget, setLoadingTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const refreshRoomDevices = useCallback(async () => {
@@ -31,6 +32,7 @@ export const useDeviceControl = (roomId: number = 1) => {
     try {
       setError(null);
       setLoading(true);
+      setLoadingTarget("fan");
       await deviceApi.controlFan(fanOn ? "turnOff" : "turnOn", roomId);
       const latestDevices = await refreshRoomDevices();
       setFanOn(latestDevices.some((device) => device.type === "fan" && device.status));
@@ -39,6 +41,7 @@ export const useDeviceControl = (roomId: number = 1) => {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingTarget(null);
     }
   }, [fanOn, refreshRoomDevices, roomId, setFanOn]);
 
@@ -46,6 +49,7 @@ export const useDeviceControl = (roomId: number = 1) => {
     try {
       setError(null);
       setLoading(true);
+      setLoadingTarget("light");
       await deviceApi.controlGroup("light", lightOn ? "turnOff" : "turnOn", roomId);
       const latestDevices = await refreshRoomDevices();
       setLightOn(latestDevices.some((device) => device.type === "light" && device.status));
@@ -54,6 +58,7 @@ export const useDeviceControl = (roomId: number = 1) => {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingTarget(null);
     }
   }, [lightOn, refreshRoomDevices, roomId, setLightOn]);
 
@@ -61,6 +66,7 @@ export const useDeviceControl = (roomId: number = 1) => {
     try {
       setError(null);
       setLoading(true);
+      setLoadingTarget("ac");
       await deviceApi.controlGroup("ac", acOn ? "turnOff" : "turnOn", roomId);
       const latestDevices = await refreshRoomDevices();
       setAcOn(latestDevices.some((device) => device.type === "ac" && device.status));
@@ -69,6 +75,7 @@ export const useDeviceControl = (roomId: number = 1) => {
       console.error(err);
     } finally {
       setLoading(false);
+      setLoadingTarget(null);
     }
   }, [acOn, refreshRoomDevices, roomId, setAcOn]);
 
@@ -77,6 +84,7 @@ export const useDeviceControl = (roomId: number = 1) => {
       try {
         setError(null);
         setLoading(true);
+        setLoadingTarget(`${deviceType}-${index}`);
         await deviceApi.controlByTypeAndIndex(
           deviceType,
           index,
@@ -91,16 +99,34 @@ export const useDeviceControl = (roomId: number = 1) => {
         return null;
       } finally {
         setLoading(false);
+        setLoadingTarget(null);
       }
     },
     [refreshRoomDevices, roomId],
   );
 
   const changeAcTemp = useCallback(
-    (temp: number) => {
-      setAcTemp(temp);
+    async (temp: number) => {
+      try {
+        setError(null);
+        setLoading(true);
+        setLoadingTarget("ac-temp");
+        const latestDevices = await deviceApi.getAll(roomId);
+        const acDevices = latestDevices.filter((device) => device.type === "ac");
+        await Promise.all(
+          acDevices.map((device) => deviceApi.updateAcTemperature(device.id, temp)),
+        );
+        const refreshed = await refreshRoomDevices();
+        setAcTemp(refreshed.find((device) => device.type === "ac")?.targetTemp ?? temp);
+      } catch (err: any) {
+        setError(err?.response?.data?.detail || "Không thể cập nhật nhiệt độ điều hòa");
+        console.error(err);
+      } finally {
+        setLoading(false);
+        setLoadingTarget(null);
+      }
     },
-    [setAcTemp],
+    [refreshRoomDevices, roomId, setAcTemp],
   );
 
   const setFan = useCallback(
@@ -117,6 +143,7 @@ export const useDeviceControl = (roomId: number = 1) => {
     acTemp,
     devices,
     loading,
+    loadingTarget,
     error,
     toggleFan,
     toggleLight,

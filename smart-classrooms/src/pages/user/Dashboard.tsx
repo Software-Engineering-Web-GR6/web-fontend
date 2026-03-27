@@ -14,13 +14,13 @@ import { useSensor } from "../../hooks";
 import { authApi, roomApi } from "../../services";
 import { useAuthStore, useSensorStore } from "../../store";
 import { buildRoomHierarchy, DAYS, getCurrentRoomAccess, getDayLabel, getRoomLabel, getShiftLabel } from "../../utils";
-import type { Room, UserRoomAccess } from "../../types";
+import type { Room, UserScheduleEntry } from "../../types";
 
 const UserDashboard: React.FC = () => {
   const { isConnected } = useSensorStore();
   const { setUser } = useAuthStore();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [accesses, setAccesses] = useState<UserRoomAccess[]>([]);
+  const [accesses, setAccesses] = useState<UserScheduleEntry[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
@@ -34,14 +34,14 @@ const UserDashboard: React.FC = () => {
       try {
         const [latestUser, latestAccesses, allRooms] = await Promise.all([
           authApi.getMe(),
-          authApi.getMyRoomAccess(),
+          authApi.getMySchedule(),
           roomApi.getAll(),
         ]);
         setUser(latestUser);
         setAccesses(latestAccesses);
         setRooms(allRooms);
       } catch (err: any) {
-        setError(err?.response?.data?.detail || "Không thể tải quyền truy cập.");
+        setError(err?.response?.data?.detail || "Không thể tải thời khóa biểu hiện tại.");
       } finally {
         setLoading(false);
       }
@@ -193,7 +193,7 @@ const UserDashboard: React.FC = () => {
                     <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
                     <p className="mt-1 text-xs text-slate-500">{room.location}</p>
                     <p className={`mt-2 text-xs font-medium ${isAccessibleNow ? "text-emerald-600" : "text-slate-400"}`}>
-                      {isAccessibleNow ? "Được quyền điều khiển ở ca hiện tại" : "Chỉ xem biểu đồ"}
+                      {isAccessibleNow ? "Có lịch ở ca hiện tại" : "Chỉ xem biểu đồ"}
                     </p>
                   </button>
                 );
@@ -213,13 +213,13 @@ const UserDashboard: React.FC = () => {
           <div>
             <p className="font-semibold text-slate-900">
               {canControlDevices
-                ? "Bạn đang có quyền điều khiển thiết bị ở phòng này."
-                : "Bạn vẫn xem được biểu đồ, nhưng chưa có quyền điều khiển thiết bị ở phòng này."}
+                ? "Bạn đang có lịch tại phòng này nên có thể điều khiển thiết bị."
+                : "Bạn vẫn xem được biểu đồ, nhưng hiện chưa có lịch tại phòng này."}
             </p>
             <p className="mt-1 text-sm text-slate-500">
               {currentAccessLabels.length > 0
-                ? `Ca hiện tại của bạn: ${currentAccessLabels.join(" | ")}`
-                : "Hiện tại bạn chưa được admin phân quyền cho khung giờ này."}
+                ? `Ca hiện tại trong thời khóa biểu của bạn: ${currentAccessLabels.join(" | ")}`
+                : "Hiện tại bạn chưa có tiết nào trong thời khóa biểu cho khung giờ này."}
             </p>
           </div>
         </div>
@@ -266,7 +266,7 @@ const UserDashboard: React.FC = () => {
         </Card>
       ) : (
         <Card className="rounded-3xl border-dashed py-10 text-center text-slate-500">
-          Thiết bị sẽ chỉ hiển thị khi bạn được cấp quyền cho phòng này ở ca hiện tại.
+          Thiết bị sẽ chỉ hiển thị khi bạn có lịch ở phòng này trong ca hiện tại.
         </Card>
       )}
     </Layout>

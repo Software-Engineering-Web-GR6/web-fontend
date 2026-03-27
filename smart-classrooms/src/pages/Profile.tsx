@@ -99,7 +99,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ isAdmin }) => {
               <div>
                 <p className="text-2xl font-bold text-slate-900">{user?.fullName || user?.username}</p>
                 <p className="mt-1 text-sm text-slate-500">
-                  {isAdmin ? "Quản trị viên hệ thống" : "Người dùng được phân quyền"}
+                  {isAdmin ? "Quản trị viên hệ thống" : "Người dùng theo thời khóa biểu"}
                 </p>
               </div>
             </div>

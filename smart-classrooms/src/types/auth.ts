@@ -19,6 +19,8 @@ export interface UserRoomAccess {
   created_at: string;
 }
 
+export type UserScheduleEntry = UserRoomAccess;
+
 export interface LoginCredentials {
   username: string;
   password: string;

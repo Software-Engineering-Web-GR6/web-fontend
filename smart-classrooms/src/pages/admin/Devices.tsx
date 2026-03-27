@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AirVent, Building2, Fan, LampDesk, Layers3, Lightbulb, Power } from "lucide-react";
+import { AirVent, Building2, Fan, Layers3, Lightbulb, Power } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Layout from "../../components/layout/Layout";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
@@ -12,11 +13,11 @@ import type { DeviceType, Room } from "../../types";
 
 const DEVICE_META: Record<
   DeviceType,
-  { label: string; icon: React.ReactNode; accent: string }
+  { label: string; icon: LucideIcon; accent: string }
 > = {
-  fan: { label: "Quạt", icon: <Fan className="h-5 w-5" />, accent: "text-indigo-600" },
-  light: { label: "Đèn", icon: <Lightbulb className="h-5 w-5" />, accent: "text-amber-500" },
-  ac: { label: "Điều hòa", icon: <AirVent className="h-5 w-5" />, accent: "text-cyan-600" },
+  fan: { label: "Quạt", icon: Fan, accent: "text-indigo-600" },
+  light: { label: "Đèn", icon: Lightbulb, accent: "text-amber-500" },
+  ac: { label: "Điều hòa", icon: AirVent, accent: "text-cyan-600" },
 };
 
 const Devices: React.FC = () => {
@@ -28,7 +29,7 @@ const Devices: React.FC = () => {
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { devices } = useDeviceStore();
-  const { toggleFan, toggleLight, toggleAc, toggleDevice, loading } = useDeviceControl(selectedRoomId ?? 1);
+  const { toggleFan, toggleLight, toggleAc, toggleDevice, loading, loadingTarget } = useDeviceControl(selectedRoomId ?? 1);
 
   useEffect(() => {
     const loadRooms = async () => {
@@ -322,6 +323,7 @@ const Devices: React.FC = () => {
           <div className="space-y-4">
             {(Object.keys(groupedDevices) as DeviceType[]).map((type) => {
               const meta = DEVICE_META[type];
+              const GroupIcon = meta.icon;
               const items = groupedDevices[type];
               const active = items.filter((device) => device.status).length;
 
@@ -330,7 +332,7 @@ const Devices: React.FC = () => {
                   <div className="mb-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-50 ${meta.accent}`}>
-                        {meta.icon}
+                        <GroupIcon className="h-5 w-5" />
                       </div>
                       <div>
                         <p className="font-semibold text-slate-900">{meta.label}</p>
@@ -339,7 +341,11 @@ const Devices: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <Button variant="secondary" onClick={() => groupedActions[type]()} loading={loading}>
+                    <Button
+                      variant="secondary"
+                      onClick={() => groupedActions[type]()}
+                      loading={loading && loadingTarget === type}
+                    >
                       {items.every((device) => device.status) ? "Tắt cả nhóm" : "Bật cả nhóm"}
                     </Button>
                   </div>
@@ -362,13 +368,14 @@ const Devices: React.FC = () => {
                                 {device.status ? "Đang bật" : "Đang tắt"}
                               </p>
                             </div>
-                            <LampDesk className={`h-5 w-5 ${device.status ? meta.accent : "text-slate-300"}`} />
+                            <GroupIcon className={`h-5 w-5 ${device.status ? meta.accent : "text-slate-300"}`} />
                           </div>
                           <button
                             onClick={() => toggleDevice(type, device.index, !device.status)}
+                            disabled={loading}
                             className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
                               device.status ? "bg-emerald-500" : "bg-slate-200"
-                            }`}
+                            } ${loading ? "cursor-not-allowed opacity-60" : ""}`}
                           >
                             <span
                               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -399,11 +406,14 @@ const Devices: React.FC = () => {
             {(Object.keys(groupedDevices) as DeviceType[]).map((type) => {
               const items = groupedDevices[type];
               const meta = DEVICE_META[type];
+              const GroupIcon = meta.icon;
 
               return (
                 <div key={type} className="rounded-2xl bg-slate-50 px-4 py-4">
                   <div className="mb-2 flex items-center gap-3">
-                    <div className={meta.accent}>{meta.icon}</div>
+                    <div className={meta.accent}>
+                      <GroupIcon className="h-5 w-5" />
+                    </div>
                     <p className="font-semibold text-slate-900">{meta.label}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">

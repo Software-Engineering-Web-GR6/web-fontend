@@ -61,5 +61,19 @@ export const formatChartTime = (timestamp: string): string => {
   return date.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
+  });
+};
+
+export const buildThirtySecondStepLabels = (count: number, endTimestamp?: string): string[] => {
+  const end = endTimestamp ? new Date(endTimestamp) : new Date();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(end);
+    date.setSeconds(end.getSeconds() - (count - 1 - index) * 30);
+    return date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
   });
 };

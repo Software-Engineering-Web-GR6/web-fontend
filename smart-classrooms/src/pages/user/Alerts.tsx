@@ -26,7 +26,7 @@ const UserAlerts: React.FC = () => {
   }, [targetAlertId, alerts.length]);
 
   return (
-    <Layout title="Cảnh báo" subtitle="Thông báo theo quyền phòng hiện tại của bạn" isAdmin={false}>
+    <Layout title="Cảnh báo" subtitle="Thông báo theo phòng đang có trong thời khóa biểu hiện tại của bạn" isAdmin={false}>
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card padding="sm" className="rounded-3xl">
           <div className="flex items-center justify-between">

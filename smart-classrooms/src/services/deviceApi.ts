@@ -7,6 +7,7 @@ interface BackendDevice {
   name: string;
   device_type: string;
   state: string;
+  target_temp: number;
   last_updated: string;
 }
 
@@ -29,6 +30,7 @@ const mapBackendDevice = (device: BackendDevice): Device => ({
   type: mapBackendTypeToFrontend(device.device_type),
   index: Number(device.name.match(/(\d+)$/)?.[1] ?? 1),
   status: ["ON", "OPEN"].includes(device.state.toUpperCase()),
+  targetTemp: device.target_temp,
   lastUpdated: device.last_updated,
 });
 
@@ -99,5 +101,16 @@ export const deviceApi = {
     }
 
     return deviceApi.controlOne(target.id, action);
+  },
+
+  updateAcTemperature: async (
+    deviceId: string | number,
+    targetTemp: number,
+  ): Promise<Device> => {
+    const response = await api.put<BackendDevice>(
+      `/api/v1/devices/${deviceId}/temperature`,
+      { target_temp: targetTemp },
+    );
+    return mapBackendDevice(response.data);
   },
 };

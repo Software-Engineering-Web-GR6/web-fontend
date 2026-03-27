@@ -67,7 +67,7 @@ const Login: React.FC = () => {
                 Quan ly toa nha, phong hoc va thiet bi theo thoi gian thuc.
               </h1>
               <p className="mt-5 max-w-lg text-lg leading-8 text-slate-600">
-                Dang nhap de theo doi du lieu cam bien, cau hinh tu dong hoa va phan quyen theo ca hoc
+                Dang nhap de theo doi du lieu cam bien, cau hinh tu dong hoa va van hanh phong hoc theo thoi khoa bieu
                 tren cung mot he thong thong nhat.
               </p>
             </div>
@@ -76,9 +76,9 @@ const Login: React.FC = () => {
           <div className="grid max-w-xl grid-cols-2 gap-4">
             <div className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-sm backdrop-blur">
               <ShieldCheck className="mb-3 h-8 w-8 text-emerald-600" />
-              <p className="font-semibold text-slate-900">Phan quyen theo ca</p>
+              <p className="font-semibold text-slate-900">Thoi khoa bieu theo ca</p>
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Quan ly quyen truy cap theo toa, phong, ngay trong tuan va tung ca hoc.
+                Quan ly lich hoc, lich day theo toa, phong, ngay trong tuan va tung ca hoc.
               </p>
             </div>
             <div className="rounded-3xl border border-white/80 bg-white/70 p-5 shadow-sm backdrop-blur">

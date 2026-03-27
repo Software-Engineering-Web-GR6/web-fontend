@@ -1,4 +1,4 @@
-import type { UserRoomAccess } from "../types";
+import type { UserScheduleEntry } from "../types";
 
 const SHIFT_WINDOWS = [
   { shift: 1, start: "07:00", end: "09:35" },
@@ -28,9 +28,9 @@ export const getCurrentDayOfWeek = (date = new Date()): number => {
 };
 
 export const getCurrentRoomAccess = (
-  accesses: UserRoomAccess[],
+  accesses: UserScheduleEntry[],
   date = new Date(),
-): UserRoomAccess[] => {
+): UserScheduleEntry[] => {
   const currentShift = getCurrentShift(date);
   if (currentShift === null) {
     return [];
@@ -42,4 +42,3 @@ export const getCurrentRoomAccess = (
       access.shift_number === currentShift && access.day_of_week === dayOfWeek,
   );
 };
-
