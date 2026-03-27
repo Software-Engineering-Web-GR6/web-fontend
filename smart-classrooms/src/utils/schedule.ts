@@ -1,4 +1,4 @@
-import type { UserRoomAccess } from "../types";
+import type { UserScheduleEntry } from "../types";
 
 export const DAYS = [
   { value: 0, label: "Thứ hai", shortLabel: "T2" },
@@ -29,7 +29,7 @@ export const getShiftTime = (shiftNumber: number): string =>
   SHIFTS.find((shift) => shift.value === shiftNumber)?.time ?? "";
 
 export const describeAccess = (
-  access: UserRoomAccess,
+  access: UserScheduleEntry,
   roomName: string,
   buildingLabel: string,
 ): string =>

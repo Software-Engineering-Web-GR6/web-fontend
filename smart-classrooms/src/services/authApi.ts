@@ -4,6 +4,7 @@ import type {
   LoginCredentials,
   LoginResponse,
   User,
+  UserScheduleEntry,
   UserRoomAccess,
 } from "../types";
 import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
@@ -120,6 +121,11 @@ export const authApi = {
     return response.data;
   },
 
+  getMySchedule: async (): Promise<UserScheduleEntry[]> => {
+    const response = await api.get<UserScheduleEntry[]>("/api/v1/auth/me/schedule");
+    return response.data;
+  },
+
   getUserRoomAccess: async (userId: number): Promise<UserRoomAccess[]> => {
     const response = await api.get<UserRoomAccess[]>(
       `/api/v1/auth/users/${userId}/room-access`,
@@ -127,9 +133,23 @@ export const authApi = {
     return response.data;
   },
 
+  getUserSchedule: async (userId: number): Promise<UserScheduleEntry[]> => {
+    const response = await api.get<UserScheduleEntry[]>(
+      `/api/v1/auth/users/${userId}/schedule`,
+    );
+    return response.data;
+  },
+
   getRoomOccupancy: async (roomId: number): Promise<UserRoomAccess[]> => {
     const response = await api.get<UserRoomAccess[]>(
       `/api/v1/auth/rooms/${roomId}/room-access`,
+    );
+    return response.data;
+  },
+
+  getRoomSchedule: async (roomId: number): Promise<UserScheduleEntry[]> => {
+    const response = await api.get<UserScheduleEntry[]>(
+      `/api/v1/auth/rooms/${roomId}/schedule`,
     );
     return response.data;
   },
@@ -145,6 +165,17 @@ export const authApi = {
     return response.data;
   },
 
+  assignSchedule: async (
+    userId: number,
+    payload: { room_id: number; shifts: number[]; days_of_week: number[] },
+  ): Promise<UserScheduleEntry[]> => {
+    const response = await api.post<UserScheduleEntry[]>(
+      `/api/v1/auth/users/${userId}/schedule`,
+      payload,
+    );
+    return response.data;
+  },
+
   revokeRoomAccess: async (
     userId: number,
     roomId: number,
@@ -152,6 +183,21 @@ export const authApi = {
     dayOfWeek: number,
   ): Promise<void> => {
     await api.delete(`/api/v1/auth/users/${userId}/room-access`, {
+      params: {
+        room_id: roomId,
+        shift_number: shiftNumber,
+        day_of_week: dayOfWeek,
+      },
+    });
+  },
+
+  removeScheduleSlot: async (
+    userId: number,
+    roomId: number,
+    shiftNumber: number,
+    dayOfWeek: number,
+  ): Promise<void> => {
+    await api.delete(`/api/v1/auth/users/${userId}/schedule`, {
       params: {
         room_id: roomId,
         shift_number: shiftNumber,

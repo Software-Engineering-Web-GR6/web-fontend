@@ -7,6 +7,7 @@ export interface Device {
   type: DeviceType;
   index: number;
   status: boolean;
+  targetTemp?: number;
   lastUpdated: string;
 }
 

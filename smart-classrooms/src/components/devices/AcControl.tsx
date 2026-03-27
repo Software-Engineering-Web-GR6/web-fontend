@@ -15,9 +15,9 @@ export const AcControl: React.FC<AcControlProps> = ({
 }) => {
   const { acOn, acTemp, toggleAc, changeAcTemp, loading } = useDeviceControl(roomId);
 
-  const handleTempChange = (delta: number) => {
+  const handleTempChange = async (delta: number) => {
     const nextTemp = Math.min(30, Math.max(16, acTemp + delta));
-    changeAcTemp(nextTemp);
+    await changeAcTemp(nextTemp);
   };
 
   return (
@@ -46,7 +46,7 @@ export const AcControl: React.FC<AcControlProps> = ({
           {acOn && (
             <div className="mr-2 flex items-center gap-1">
               <button
-                onClick={() => handleTempChange(-1)}
+                onClick={() => void handleTempChange(-1)}
                 disabled={disabled || loading || acTemp <= 16}
                 className="rounded-full p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -54,7 +54,7 @@ export const AcControl: React.FC<AcControlProps> = ({
               </button>
               <span className="w-8 text-center font-medium text-gray-900">{acTemp}</span>
               <button
-                onClick={() => handleTempChange(1)}
+                onClick={() => void handleTempChange(1)}
                 disabled={disabled || loading || acTemp >= 30}
                 className="rounded-full p-1 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
               >

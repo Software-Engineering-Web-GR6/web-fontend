@@ -7,18 +7,18 @@ import { useSensor } from "../../hooks";
 import { useSensorStore } from "../../store";
 import { authApi, roomApi } from "../../services";
 import { formatDateTime, getCurrentRoomAccess, getRoomLabel } from "../../utils";
-import type { Room, UserRoomAccess } from "../../types";
+import type { Room, UserScheduleEntry } from "../../types";
 
 const History: React.FC = () => {
   const { history } = useSensorStore();
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [accesses, setAccesses] = useState<UserRoomAccess[]>([]);
+  const [accesses, setAccesses] = useState<UserScheduleEntry[]>([]);
 
   useEffect(() => {
     const load = async () => {
       try {
         const [myAccesses, allRooms] = await Promise.all([
-          authApi.getMyRoomAccess(),
+          authApi.getMySchedule(),
           roomApi.getAll(),
         ]);
         setAccesses(myAccesses);
@@ -52,7 +52,7 @@ const History: React.FC = () => {
     >
       {!currentRoom ? (
         <Card className="rounded-3xl py-12 text-center text-slate-500">
-          Hiện chưa có phòng nào được cấp trong khung giờ này.
+          Hiện chưa có phòng nào nằm trong thời khóa biểu của bạn ở khung giờ này.
         </Card>
       ) : (
         <>
@@ -100,7 +100,7 @@ const History: React.FC = () => {
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Bảng dữ liệu chi tiết</h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Hiển thị 20 bản ghi gần nhất của phòng đang được cấp quyền.
+                  Hiển thị 20 bản ghi gần nhất của phòng đang có trong thời khóa biểu hiện tại.
                 </p>
               </div>
               <div className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500">
