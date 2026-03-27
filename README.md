@@ -1,12 +1,12 @@
 # Frontend Workspace
 
-Workspace frontend cho hệ thống Smart Classroom.
+Workspace frontend cho he thong Smart Classroom.
 
-Trong thư mục này, ứng dụng chính nằm tại:
+Ung dung chinh nam trong:
 
 - `frontend/smart-classrooms`
 
-## Công nghệ sử dụng
+## Cong nghe su dung
 
 - React
 - Vite
@@ -16,18 +16,18 @@ Trong thư mục này, ứng dụng chính nằm tại:
 - Recharts
 - WebSocket
 
-## Tính năng hiện tại
+## Tinh nang hien tai
 
-- Đăng nhập bằng JWT từ backend
-- Giao diện admin và user tách riêng
-- Dashboard phân tầng theo `tòa -> tầng -> phòng`
-- Phân quyền user theo `room + shift + day`
-- Quản lý thiết bị theo từng phòng
-- Chế độ `tự động / thủ công` được đồng bộ với backend
-- Cảnh báo realtime qua WebSocket
-- Hồ sơ tài khoản và đổi mật khẩu
+- Dang nhap bang JWT tu backend
+- Giao dien admin va user tach rieng
+- Dashboard phan tang theo `toa -> tang -> phong`
+- Phan quyen user theo `room + shift + day`
+- Quan ly thiet bi theo tung phong
+- Dong bo che do `tu dong / thu cong` voi backend
+- Canh bao realtime qua WebSocket
+- Ho so tai khoan va doi mat khau
 
-## Cấu trúc thư mục
+## Cau truc thu muc
 
 ```text
 frontend/
@@ -40,8 +40,8 @@ frontend/
     `-- vite.config.ts
 ```
 
-## Chạy ứng dụng
+## Chay ung dung
 
-Xem chi tiết tại:
+Xem huong dan chi tiet tai:
 
 - `frontend/smart-classrooms/README.md`
