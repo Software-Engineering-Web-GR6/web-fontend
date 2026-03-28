@@ -79,7 +79,7 @@ const Users: React.FC = () => {
         setSelectedUserId(userData.find((user) => user.role === "user")?.id ?? null);
       }
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể tải dữ liệu người dùng."));
+      setError(getApiErrorMessage(err, "Khong the tai du lieu nguoi dung."));
     } finally {
       setLoading(false);
     }
@@ -90,7 +90,7 @@ const Users: React.FC = () => {
       const data = await authApi.getUserSchedule(userId);
       setAccesses(data);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể tải thời khóa biểu của người dùng."));
+      setError(getApiErrorMessage(err, "Khong the tai thoi khoa bieu cua nguoi dung."));
     }
   };
 
@@ -99,7 +99,7 @@ const Users: React.FC = () => {
       const data = await authApi.getRoomSchedule(roomId);
       setRoomOccupancy(data);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể tải thời khóa biểu hiện có của phòng."));
+      setError(getApiErrorMessage(err, "Khong the tai lich hien co cua phong."));
     }
   };
 
@@ -122,28 +122,29 @@ const Users: React.FC = () => {
   const selectedUser = normalUsers.find((user) => user.id === selectedUserId) ?? null;
 
   useEffect(() => {
-    if (!selectedBuilding && hierarchy[0]) {
-      setSelectedBuilding(hierarchy[0].key);
-    }
-  }, [hierarchy, selectedBuilding]);
-
-  useEffect(() => {
-    if (!building) {
+    if (!hierarchy.length) {
+      setSelectedBuilding(null);
+      setSelectedFloor(null);
+      setSelectedRoomId(null);
       return;
     }
-    if (!building.floors.some((item) => item.floor === selectedFloor)) {
-      setSelectedFloor(building.floors[0]?.floor ?? null);
-    }
-  }, [building, selectedFloor]);
 
-  useEffect(() => {
-    if (!floor) {
-      return;
+    const nextBuilding = hierarchy.find((item) => item.key === selectedBuilding) ?? hierarchy[0];
+    const nextFloor =
+      nextBuilding.floors.find((item) => item.floor === selectedFloor) ?? nextBuilding.floors[0] ?? null;
+    const nextRoom =
+      nextFloor?.rooms.find((room) => room.id === selectedRoomId) ?? nextFloor?.rooms[0] ?? null;
+
+    if (selectedBuilding !== nextBuilding.key) {
+      setSelectedBuilding(nextBuilding.key);
     }
-    if (!floor.rooms.some((room) => room.id === selectedRoomId)) {
-      setSelectedRoomId(floor.rooms[0]?.id ?? null);
+    if (selectedFloor !== (nextFloor?.floor ?? null)) {
+      setSelectedFloor(nextFloor?.floor ?? null);
     }
-  }, [floor, selectedRoomId]);
+    if (selectedRoomId !== (nextRoom?.id ?? null)) {
+      setSelectedRoomId(nextRoom?.id ?? null);
+    }
+  }, [hierarchy, selectedBuilding, selectedFloor, selectedRoomId]);
 
   useEffect(() => {
     if (selectedRoomId) {
@@ -168,86 +169,6 @@ const Users: React.FC = () => {
     [roomOccupancy, selectedUserId],
   );
 
-  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      await authApi.createUser({
-        full_name: fullName.trim(),
-        email: email.trim(),
-        password,
-      });
-      setFullName("");
-      setEmail("");
-      setPassword("");
-      await fetchUsers();
-    } catch (err: any) {
-      setError(getApiErrorMessage(err, "Tạo tài khoản thất bại."));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản này?")) {
-      return;
-    }
-
-    setDeletingId(userId);
-    setError(null);
-    try {
-      await authApi.deleteUser(userId);
-      setUsers((prev) => prev.filter((user) => user.id !== userId));
-      if (selectedUserId === userId) {
-        setSelectedUserId(null);
-        setAccesses([]);
-      }
-    } catch (err: any) {
-      setError(getApiErrorMessage(err, "Xóa tài khoản thất bại."));
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const handleSlotToggle = async (dayOfWeek: number, shiftNumber: number) => {
-    if (!selectedUserId || !selectedRoomId) {
-      return;
-    }
-
-    const key = accessKey(selectedRoomId, dayOfWeek, shiftNumber);
-    if (occupiedSet.has(key)) {
-      return;
-    }
-
-    const currentAccess = accesses.find(
-      (access) =>
-        access.room_id === selectedRoomId &&
-        access.day_of_week === dayOfWeek &&
-        access.shift_number === shiftNumber,
-    );
-
-    setSubmitting(true);
-    setError(null);
-    try {
-      if (currentAccess) {
-        await authApi.removeScheduleSlot(selectedUserId, selectedRoomId, shiftNumber, dayOfWeek);
-      } else {
-        await authApi.assignSchedule(selectedUserId, {
-          room_id: selectedRoomId,
-          shifts: [shiftNumber],
-          days_of_week: [dayOfWeek],
-        });
-      }
-
-      await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
-    } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể cập nhật thời khóa biểu."));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const roomMap = useMemo(() => new Map(rooms.map((room) => [room.id, room])), [rooms]);
 
   const scheduleEntriesBySlot = useMemo(
@@ -260,6 +181,13 @@ const Users: React.FC = () => {
       ),
     [accesses, roomMap],
   );
+
+  const selectedSlotEntry = useMemo(() => {
+    if (selectedDay === null || selectedShift === null) {
+      return null;
+    }
+    return scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
+  }, [scheduleEntriesBySlot, selectedDay, selectedShift]);
 
   const selectedSlotOccupied = useMemo(() => {
     if (!selectedRoomId || selectedDay === null || selectedShift === null) {
@@ -275,21 +203,103 @@ const Users: React.FC = () => {
     return myAccessSet.has(accessKey(selectedRoomId, selectedDay, selectedShift));
   }, [myAccessSet, selectedDay, selectedRoomId, selectedShift]);
 
-  const selectedSlotEntry = useMemo(() => {
-    if (selectedDay === null || selectedShift === null) {
-      return null;
+  const selectedSlotAlreadyMatchesRoom =
+    selectedSlotEntry !== null && selectedRoomId !== null && selectedSlotEntry.access.room_id === selectedRoomId;
+
+  const selectBuildingAndRoom = (
+    buildingKey: string,
+    preferredFloor: number | null = null,
+    preferredRoomId: number | null = null,
+  ) => {
+    const nextBuilding = hierarchy.find((item) => item.key === buildingKey);
+    if (!nextBuilding) {
+      return;
     }
-    return scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
-  }, [scheduleEntriesBySlot, selectedDay, selectedShift]);
+
+    const nextFloor =
+      nextBuilding.floors.find((item) => item.floor === preferredFloor) ?? nextBuilding.floors[0] ?? null;
+    const nextRoom =
+      nextFloor?.rooms.find((room) => room.id === preferredRoomId) ?? nextFloor?.rooms[0] ?? null;
+
+    setSelectedBuilding(nextBuilding.key);
+    setSelectedFloor(nextFloor?.floor ?? null);
+    setSelectedRoomId(nextRoom?.id ?? null);
+    setError(null);
+  };
+
+  const selectFloorAndRoom = (floorNumber: number) => {
+    if (!building) {
+      return;
+    }
+
+    const nextFloor = building.floors.find((item) => item.floor === floorNumber) ?? null;
+    const nextRoom = nextFloor?.rooms[0] ?? null;
+
+    setSelectedFloor(nextFloor?.floor ?? null);
+    setSelectedRoomId(nextRoom?.id ?? null);
+    setError(null);
+  };
+
+  const syncSelectionToRoom = (roomId: number) => {
+    const room = rooms.find((item) => item.id === roomId);
+    if (!room) {
+      return;
+    }
+
+    const normalized = normalizeRoom(room);
+    selectBuildingAndRoom(normalized.building, normalized.floor, room.id);
+  };
+
+  const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    try {
+      await authApi.createUser({
+        full_name: fullName.trim(),
+        email: email.trim(),
+        password,
+      });
+      setFullName("");
+      setEmail("");
+      setPassword("");
+      await fetchUsers();
+    } catch (err: any) {
+      setError(getApiErrorMessage(err, "Tao tai khoan that bai."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm("Ban co chac chan muon xoa tai khoan nay?")) {
+      return;
+    }
+
+    setDeletingId(userId);
+    setError(null);
+    try {
+      await authApi.deleteUser(userId);
+      setUsers((prev) => prev.filter((user) => user.id !== userId));
+      if (selectedUserId === userId) {
+        setSelectedUserId(null);
+        setAccesses([]);
+      }
+    } catch (err: any) {
+      setError(getApiErrorMessage(err, "Xoa tai khoan that bai."));
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleAssignSelectedSlot = async () => {
     if (selectedDay === null || selectedShift === null) {
-      setError("Hãy chọn một ô trên lịch trước.");
+      setError("Hay chon mot o tren lich truoc.");
       return;
     }
 
     if (!selectedRoomId) {
-      setError("Hãy chọn phòng học để xếp lịch.");
+      setError("Hay chon phong hoc de xep lich.");
       return;
     }
 
@@ -298,11 +308,6 @@ const Users: React.FC = () => {
     }
 
     const currentSlot = scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
-
-    if (currentSlot && currentSlot.access.room_id === selectedRoomId) {
-      setError("Ô này đã đang dùng đúng phòng bạn chọn.");
-      return;
-    }
 
     setSubmitting(true);
     setError(null);
@@ -314,6 +319,11 @@ const Users: React.FC = () => {
           currentSlot.access.shift_number,
           currentSlot.access.day_of_week,
         );
+
+        if (currentSlot.access.room_id === selectedRoomId) {
+          await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
+          return;
+        }
       }
 
       await authApi.assignSchedule(selectedUserId, {
@@ -324,35 +334,23 @@ const Users: React.FC = () => {
 
       await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Không thể cập nhật thời khóa biểu."));
+      setError(getApiErrorMessage(err, "Khong the cap nhat thoi khoa bieu."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const syncSelectionToRoom = (roomId: number) => {
-    const room = rooms.find((item) => item.id === roomId);
-    if (!room) {
-      return;
-    }
-
-    const normalized = normalizeRoom(room);
-    setSelectedBuilding(normalized.building);
-    setSelectedFloor(normalized.floor);
-    setSelectedRoomId(room.id);
-  };
-
   return (
     <Layout
-      title="Người dùng"
-      subtitle="Mỗi người dùng có thời khóa biểu riêng, và quyền sử dụng phòng sẽ tự mở đúng theo ca đang diễn ra"
+      title="Nguoi dung"
+      subtitle="Moi nguoi dung co thoi khoa bieu rieng, va quyen su dung phong se tu mo dung theo ca dang dien ra"
       isAdmin={true}
     >
       <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card padding="sm" className="rounded-3xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Tổng tài khoản</p>
+              <p className="text-sm text-slate-500">Tong tai khoan</p>
               <p className="text-3xl font-bold text-slate-900">{users.length}</p>
             </div>
             <UserRound className="h-6 w-6 text-slate-400" />
@@ -361,7 +359,7 @@ const Users: React.FC = () => {
         <Card padding="sm" className="rounded-3xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Quản trị viên</p>
+              <p className="text-sm text-slate-500">Quan tri vien</p>
               <p className="text-3xl font-bold text-indigo-600">
                 {users.filter((user) => user.role === "admin").length}
               </p>
@@ -372,7 +370,7 @@ const Users: React.FC = () => {
         <Card padding="sm" className="rounded-3xl">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-500">Người dùng thường</p>
+              <p className="text-sm text-slate-500">Nguoi dung thuong</p>
               <p className="text-3xl font-bold text-emerald-600">{normalUsers.length}</p>
             </div>
             <Badge variant="success">User</Badge>
@@ -382,13 +380,13 @@ const Users: React.FC = () => {
 
       <Card className="mb-6 rounded-3xl">
         <CardHeader>
-          <CardTitle>Tạo tài khoản mới</CardTitle>
+          <CardTitle>Tao tai khoan moi</CardTitle>
         </CardHeader>
         <form onSubmit={handleCreateUser} className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <input
             value={fullName}
             onChange={(event) => setFullName(event.target.value)}
-            placeholder="Họ và tên"
+            placeholder="Ho va ten"
             className="w-full rounded-2xl border border-slate-200 px-4 py-3"
             required
           />
@@ -404,14 +402,14 @@ const Users: React.FC = () => {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Mật khẩu"
+            placeholder="Mat khau"
             className="w-full rounded-2xl border border-slate-200 px-4 py-3"
             minLength={6}
             required
           />
           <Button type="submit" loading={submitting} className="w-full rounded-2xl">
             <Plus className="mr-1 h-4 w-4" />
-            Tạo tài khoản
+            Tao tai khoan
           </Button>
         </form>
       </Card>
@@ -426,9 +424,9 @@ const Users: React.FC = () => {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.45fr]">
         <Card padding="none" className="rounded-3xl">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">Danh sách người dùng</h2>
+            <h2 className="text-lg font-semibold text-slate-900">Danh sach nguoi dung</h2>
             <Button size="sm" variant="secondary" onClick={fetchUsers} loading={loading}>
-              Làm mới
+              Lam moi
             </Button>
           </div>
           <div className="space-y-3 p-4">
@@ -465,7 +463,7 @@ const Users: React.FC = () => {
                       loading={deletingId === user.id}
                     >
                       <Trash2 className="mr-1 h-4 w-4" />
-                      Xóa
+                      Xoa
                     </Button>
                   </div>
                 </div>
@@ -477,12 +475,12 @@ const Users: React.FC = () => {
         <Card className="rounded-3xl">
           <CardHeader>
             <CardTitle>
-              {selectedUser ? `Thời khóa biểu của ${selectedUser.full_name}` : "Thời khóa biểu người dùng"}
+              {selectedUser ? `Thoi khoa bieu cua ${selectedUser.full_name}` : "Thoi khoa bieu nguoi dung"}
             </CardTitle>
           </CardHeader>
 
           {!selectedUser ? (
-            <p className="text-sm text-slate-500">Chọn một tài khoản ở bên trái để bắt đầu sắp lịch học hoặc lịch dạy.</p>
+            <p className="text-sm text-slate-500">Chon mot tai khoan o ben trai de bat dau sap lich hoc hoac lich day.</p>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.85fr]">
@@ -490,24 +488,24 @@ const Users: React.FC = () => {
                   <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#ffffff_100%)] p-5">
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-lg font-semibold text-slate-900">Lịch cá nhân theo tuần</p>
+                        <p className="text-lg font-semibold text-slate-900">Lich ca nhan theo tuan</p>
                         <p className="mt-1 text-sm text-slate-500">
-                          Bấm vào từng ô để chọn ca học, sau đó gán phòng ở bảng bên phải.
+                          Bam vao tung o de chon ca hoc, sau do gan phong o bang ben phai.
                         </p>
                       </div>
                       <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                         <div className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
                           <CalendarDays className="h-4 w-4" />
-                          Tuần chuẩn
+                          Tuan chuan
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">T2 đến Chủ nhật</p>
+                        <p className="mt-1 text-xs text-slate-500">T2 den Chu nhat</p>
                       </div>
                     </div>
 
                     <div className="overflow-x-auto">
                       <div className="grid min-w-[860px] grid-cols-[110px_repeat(7,minmax(100px,1fr))] overflow-hidden rounded-3xl border border-slate-200 bg-white">
                         <div className="border-b border-r border-slate-200 bg-slate-50 px-4 py-4">
-                          <p className="text-sm font-semibold text-slate-900">Khung giờ</p>
+                          <p className="text-sm font-semibold text-slate-900">Khung gio</p>
                           <p className="mt-1 text-xs text-slate-500">GMT+7</p>
                         </div>
                         {DAYS.map((day) => (
@@ -546,6 +544,7 @@ const Users: React.FC = () => {
                                   onClick={() => {
                                     setSelectedDay(day.value);
                                     setSelectedShift(shift.value);
+                                    setError(null);
                                     if (room?.id) {
                                       syncSelectionToRoom(room.id);
                                     }
@@ -561,24 +560,24 @@ const Users: React.FC = () => {
                                   {slot ? (
                                     <div className="flex h-full flex-col rounded-2xl border border-emerald-200 bg-white px-3 py-3 shadow-sm">
                                       <div className="mb-2 rounded-xl bg-indigo-700 px-3 py-2 text-white">
-                                        <p className="text-sm font-semibold">{room ? getRoomLabel(room) : `Phòng ${slot.access.room_id}`}</p>
+                                        <p className="text-sm font-semibold">{room ? getRoomLabel(room) : `Phong ${slot.access.room_id}`}</p>
                                         <p className="mt-1 text-[11px] text-indigo-100">{shift.time}</p>
                                       </div>
                                       <p className="line-clamp-2 text-sm font-medium text-slate-800">
-                                        {room?.location ?? "Đã xếp trong thời khóa biểu"}
+                                        {room?.location ?? "Da xep trong thoi khoa bieu"}
                                       </p>
                                       <div className="mt-auto flex items-center justify-between pt-3 text-xs text-slate-500">
                                         <span>{day.shortLabel}</span>
                                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
                                           <Check className="h-3 w-3" />
-                                          Đã xếp
+                                          Da xep
                                         </span>
                                       </div>
                                     </div>
                                   ) : (
                                     <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-center">
-                                      <p className="text-sm font-semibold text-slate-500">Trống</p>
-                                      <p className="mt-1 text-xs text-slate-400">Chọn ô để xếp lịch</p>
+                                      <p className="text-sm font-semibold text-slate-500">Trong</p>
+                                      <p className="mt-1 text-xs text-slate-400">Chon o de xep lich</p>
                                     </div>
                                   )}
                                 </button>
@@ -593,29 +592,29 @@ const Users: React.FC = () => {
 
                 <div className="space-y-4">
                   <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-700">Ô đang chọn</p>
+                    <p className="text-sm font-semibold text-slate-700">O dang chon</p>
                     <p className="mt-2 text-base font-semibold text-slate-900">
                       {selectedDay !== null && selectedShift !== null
                         ? `${getDayLabel(selectedDay)} • ${getShiftLabel(selectedShift)}`
-                        : "Chưa chọn ô nào trên lịch"}
+                        : "Chua chon o nao tren lich"}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {selectedShift !== null ? getShiftTime(selectedShift) : "Hãy bấm vào một ô trong bảng lịch tuần."}
+                      {selectedShift !== null ? getShiftTime(selectedShift) : "Hay bam vao mot o trong bang lich tuan."}
                     </p>
                     {selectedSlotEntry && (
                       <div className="mt-3 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-600">
-                        Đang có lịch tại {selectedSlotEntry.room ? getRoomLabel(selectedSlotEntry.room) : `Phòng ${selectedSlotEntry.access.room_id}`}.
+                        Dang co lich tai {selectedSlotEntry.room ? getRoomLabel(selectedSlotEntry.room) : `Phong ${selectedSlotEntry.access.room_id}`}.
                       </div>
                     )}
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Chọn tòa</p>
+                    <p className="mb-3 text-sm font-semibold text-slate-700">Chon toa</p>
                     <div className="space-y-3">
                       {hierarchy.map((item) => (
                         <button
                           key={item.key}
-                          onClick={() => setSelectedBuilding(item.key)}
+                          onClick={() => selectBuildingAndRoom(item.key)}
                           className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
                             selectedBuilding === item.key
                               ? "border-indigo-300 bg-indigo-50 text-indigo-700"
@@ -625,7 +624,7 @@ const Users: React.FC = () => {
                           <Building2 className="h-5 w-5" />
                           <div>
                             <p className="font-semibold">{item.label}</p>
-                            <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
+                            <p className="text-xs text-slate-500">{item.rooms.length} phong</p>
                           </div>
                         </button>
                       ))}
@@ -633,17 +632,17 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Chọn tầng</p>
+                    <p className="mb-3 text-sm font-semibold text-slate-700">Chon tang</p>
                     {!building ? (
                       <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                        Chưa chọn tòa.
+                        Chua chon toa.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {building.floors.map((item) => (
                           <button
                             key={item.floor}
-                            onClick={() => setSelectedFloor(item.floor)}
+                            onClick={() => selectFloorAndRoom(item.floor)}
                             className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
                               selectedFloor === item.floor
                                 ? "border-emerald-300 bg-emerald-50 text-emerald-700"
@@ -652,8 +651,8 @@ const Users: React.FC = () => {
                           >
                             <Layers3 className="h-5 w-5" />
                             <div>
-                              <p className="font-semibold">Tầng {item.floor}</p>
-                              <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
+                              <p className="font-semibold">Tang {item.floor}</p>
+                              <p className="text-xs text-slate-500">{item.rooms.length} phong</p>
                             </div>
                           </button>
                         ))}
@@ -662,17 +661,20 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Chọn phòng học</p>
+                    <p className="mb-3 text-sm font-semibold text-slate-700">Chon phong hoc</p>
                     {!floor ? (
                       <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                        Chưa chọn tầng.
+                        Chua chon tang.
                       </div>
                     ) : (
                       <div className="space-y-3">
                         {floor.rooms.map((room) => (
                           <button
                             key={room.id}
-                            onClick={() => setSelectedRoomId(room.id)}
+                            onClick={() => {
+                              setSelectedRoomId(room.id);
+                              setError(null);
+                            }}
                             className={`w-full rounded-2xl border px-4 py-3 text-left ${
                               selectedRoomId === room.id
                                 ? "border-sky-300 bg-sky-50"
@@ -691,11 +693,11 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eef2ff_0%,#f8fafc_100%)] p-4">
-                    <p className="text-sm font-semibold text-slate-700">Gán lịch cho ô đang chọn</p>
+                    <p className="text-sm font-semibold text-slate-700">Gan lich cho o dang chon</p>
                     <p className="mt-2 text-sm text-slate-500">
                       {selectedRoom
-                        ? `Phòng đang chọn: ${getRoomLabel(selectedRoom)}`
-                        : "Hãy chọn phòng học trước khi gán lịch."}
+                        ? `Phong dang chon: ${getRoomLabel(selectedRoom)}`
+                        : "Hay chon phong hoc truoc khi gan lich."}
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-3">
                       <Button
@@ -704,20 +706,22 @@ const Users: React.FC = () => {
                         disabled={!selectedRoomId || selectedDay === null || selectedShift === null || selectedSlotOccupied}
                         className="rounded-2xl"
                       >
-                        {selectedSlotMine
-                          ? "Thay đổi lịch TKB"
-                          : selectedSlotEntry
-                            ? "Thay đổi lịch TKB"
-                            : "Thêm vào TKB"}
+                        {selectedSlotAlreadyMatchesRoom
+                          ? "Go khoi TKB"
+                          : selectedSlotMine
+                            ? "Thay doi lich TKB"
+                            : selectedSlotEntry
+                              ? "Thay doi lich TKB"
+                              : "Them vao TKB"}
                       </Button>
                     </div>
                     <div className="mt-4 space-y-2 text-xs text-slate-500">
                       <p>
                         {selectedSlotOccupied
-                          ? "Khung giờ này của phòng đang chọn đã thuộc về người khác."
+                          ? "Khung gio nay cua phong dang chon da thuoc ve nguoi khac."
                           : selectedSlotEntry
-                            ? "Ô đang chọn đã có lịch. Chọn phòng khác rồi bấm nút trên để cập nhật lịch."
-                            : "Ô đang chọn chưa có lịch. Chọn phòng rồi bấm nút trên để thêm vào thời khóa biểu."}
+                            ? "O dang chon da co lich. Chon phong khac roi bam nut tren de cap nhat lich."
+                            : "O dang chon chua co lich. Chon phong roi bam nut tren de them vao thoi khoa bieu."}
                       </p>
                     </div>
                   </div>
