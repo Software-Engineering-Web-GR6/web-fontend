@@ -7,7 +7,7 @@ import { deviceApi, sensorApi, socketService } from "../services";
 import type { SensorData, SensorHistory } from "../types";
 import { createAlert, getAlertLevel, isWithinThresholds } from "../utils";
 
-export const useSensor = (roomId: number = 1) => {
+export const useSensor = (roomId: number | null = 1) => {
   const {
     temp,
     humidity,
@@ -75,6 +75,16 @@ export const useSensor = (roomId: number = 1) => {
   useEffect(() => {
     let isMounted = true;
     reset();
+
+    if (roomId == null) {
+      setConnected(false);
+      syncDevices([]);
+      setHistory([]);
+      return () => {
+        isMounted = false;
+        setConnected(false);
+      };
+    }
 
     const fetchRoomData = async () => {
       try {

@@ -17,12 +17,12 @@ const History: React.FC = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const [myAccesses, allRooms] = await Promise.all([
+        const [myAccesses, accessibleRooms] = await Promise.all([
           authApi.getMySchedule(),
           roomApi.getAll(),
         ]);
         setAccesses(myAccesses);
-        setRooms(allRooms);
+        setRooms(accessibleRooms);
       } catch (error) {
         console.error("Failed to load user history context", error);
       }
@@ -36,7 +36,7 @@ const History: React.FC = () => {
     [currentAccesses, rooms],
   );
 
-  useSensor(currentRoom?.id ?? 1);
+  useSensor(currentRoom?.id ?? null);
 
   const latestItem = history[history.length - 1] ?? null;
 
