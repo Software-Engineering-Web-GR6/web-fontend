@@ -13,7 +13,13 @@ import AcControl from "../../components/devices/AcControl";
 import { useSensor } from "../../hooks";
 import { authApi, roomApi } from "../../services";
 import { useAuthStore, useSensorStore } from "../../store";
-import { buildRoomHierarchy, DAYS, getCurrentRoomAccess, getDayLabel, getRoomLabel, getShiftLabel } from "../../utils";
+import {
+  buildRoomHierarchy,
+  getCurrentRoomAccess,
+  getDayLabel,
+  getRoomLabel,
+  getShiftLabel,
+} from "../../utils";
 import type { Room, UserScheduleEntry } from "../../types";
 
 const UserDashboard: React.FC = () => {
@@ -32,14 +38,14 @@ const UserDashboard: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const [latestUser, latestAccesses, allRooms] = await Promise.all([
+        const [latestUser, latestAccesses, accessibleRooms] = await Promise.all([
           authApi.getMe(),
           authApi.getMySchedule(),
           roomApi.getAll(),
         ]);
         setUser(latestUser);
         setAccesses(latestAccesses);
-        setRooms(allRooms);
+        setRooms(accessibleRooms);
       } catch (err: any) {
         setError(err?.response?.data?.detail || "Không thể tải thời khóa biểu hiện tại.");
       } finally {
@@ -63,6 +69,7 @@ const UserDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!building) {
+      setSelectedFloor(null);
       return;
     }
     if (!building.floors.some((floor) => floor.floor === selectedFloor)) {
@@ -74,6 +81,7 @@ const UserDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!floor) {
+      setSelectedRoomId(null);
       return;
     }
     if (!floor.rooms.some((room) => room.id === selectedRoomId)) {
@@ -85,7 +93,7 @@ const UserDashboard: React.FC = () => {
   const activeRoomAccess = currentAccesses.find((access) => access.room_id === selectedRoomId) ?? null;
   const canControlDevices = Boolean(activeRoomAccess && selectedRoom);
 
-  useSensor(selectedRoom?.id ?? 1);
+  useSensor(selectedRoom?.id ?? null);
 
   const currentAccessLabels = currentAccesses
     .map((access) => {
@@ -111,7 +119,7 @@ const UserDashboard: React.FC = () => {
       subtitle={
         selectedRoom
           ? `${getRoomLabel(selectedRoom)} • ${building?.label} • Tầng ${selectedRoom.floor}`
-          : "Chọn tòa, tầng và phòng để xem dữ liệu"
+          : "Hiện không có phòng nào trong quyền truy cập của bạn ở ca này"
       }
       isAdmin={false}
     >
@@ -146,7 +154,7 @@ const UserDashboard: React.FC = () => {
             <CardTitle>Tầng</CardTitle>
           </CardHeader>
           {!building ? (
-            <p className="text-sm text-slate-500">Chọn tòa để xem tầng.</p>
+            <p className="text-sm text-slate-500">Chưa có tầng khả dụng trong ca hiện tại.</p>
           ) : (
             <div className="space-y-3">
               {building.floors.map((item) => (
@@ -175,29 +183,24 @@ const UserDashboard: React.FC = () => {
             <CardTitle>Phòng</CardTitle>
           </CardHeader>
           {!floor ? (
-            <p className="text-sm text-slate-500">Chọn tầng để xem phòng.</p>
+            <p className="text-sm text-slate-500">Không có phòng nào khả dụng ở thời điểm hiện tại.</p>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {floor.rooms.map((room) => {
-                const isAccessibleNow = currentAccesses.some((access) => access.room_id === room.id);
-                return (
-                  <button
-                    key={room.id}
-                    onClick={() => setSelectedRoomId(room.id)}
-                    className={`rounded-2xl border px-4 py-4 text-left ${
-                      selectedRoomId === room.id
-                        ? "border-sky-300 bg-sky-50"
-                        : "border-slate-200 hover:bg-slate-50"
-                    }`}
-                  >
-                    <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
-                    <p className="mt-1 text-xs text-slate-500">{room.location}</p>
-                    <p className={`mt-2 text-xs font-medium ${isAccessibleNow ? "text-emerald-600" : "text-slate-400"}`}>
-                      {isAccessibleNow ? "Có lịch ở ca hiện tại" : "Chỉ xem biểu đồ"}
-                    </p>
-                  </button>
-                );
-              })}
+              {floor.rooms.map((room) => (
+                <button
+                  key={room.id}
+                  onClick={() => setSelectedRoomId(room.id)}
+                  className={`rounded-2xl border px-4 py-4 text-left ${
+                    selectedRoomId === room.id
+                      ? "border-sky-300 bg-sky-50"
+                      : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
+                  <p className="mt-1 text-xs text-slate-500">{room.location}</p>
+                  <p className="mt-2 text-xs font-medium text-emerald-600">Có lịch ở ca hiện tại</p>
+                </button>
+              ))}
             </div>
           )}
         </Card>
@@ -214,7 +217,7 @@ const UserDashboard: React.FC = () => {
             <p className="font-semibold text-slate-900">
               {canControlDevices
                 ? "Bạn đang có lịch tại phòng này nên có thể điều khiển thiết bị."
-                : "Bạn vẫn xem được biểu đồ, nhưng hiện chưa có lịch tại phòng này."}
+                : "Bạn chỉ có thể xem và điều khiển phòng khi có lịch ở ca hiện tại."}
             </p>
             <p className="mt-1 text-sm text-slate-500">
               {currentAccessLabels.length > 0
@@ -227,31 +230,39 @@ const UserDashboard: React.FC = () => {
 
       {error && <p className="mb-4 text-sm text-rose-600">{error}</p>}
 
-      <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
-        <span className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
-        {isConnected ? "Đã kết nối dữ liệu thời gian thực" : "Đang kết nối dữ liệu..."}
-      </div>
+      {selectedRoom ? (
+        <>
+          <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+            <span className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-slate-300"}`} />
+            {isConnected ? "Đã kết nối dữ liệu thời gian thực" : "Đang kết nối dữ liệu..."}
+          </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <TempCard showTrend={false} />
-        <HumidityCard showTrend={false} />
-        <ComfortIndex />
-      </div>
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <TempCard showTrend={false} />
+            <HumidityCard showTrend={false} />
+            <ComfortIndex />
+          </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Biểu đồ nhiệt độ</CardTitle>
-          </CardHeader>
-          <TempLineChart height={280} />
+          <div className="mb-6 grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <Card className="rounded-3xl">
+              <CardHeader>
+                <CardTitle>Biểu đồ nhiệt độ</CardTitle>
+              </CardHeader>
+              <TempLineChart height={280} />
+            </Card>
+            <Card className="rounded-3xl">
+              <CardHeader>
+                <CardTitle>Biểu đồ độ ẩm</CardTitle>
+              </CardHeader>
+              <HumidityChart height={280} />
+            </Card>
+          </div>
+        </>
+      ) : (
+        <Card className="mb-6 rounded-3xl border-dashed py-10 text-center text-slate-500">
+          Hiện không có phòng nào trong khung lịch hiện tại để hiển thị cảm biến.
         </Card>
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Biểu đồ độ ẩm</CardTitle>
-          </CardHeader>
-          <HumidityChart height={280} />
-        </Card>
-      </div>
+      )}
 
       {canControlDevices && selectedRoom ? (
         <Card className="rounded-3xl">
