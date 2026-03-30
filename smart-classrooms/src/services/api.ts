@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_BASE_URL } from "../utils/constants";
+import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,7 +14,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Add auth token if available
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -34,8 +35,7 @@ api.interceptors.response.use(
 
     if (status === 401 && !isLoginRequest) {
       // Handle unauthorized
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
+      clearStoredAuth();
       window.location.href = "/login";
     }
     return Promise.reject(error);

@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { AuthState, LoginCredentials, User } from "../types";
 import { authApi } from "../services/authApi";
+import { clearStoredAuth, setStoredToken } from "../utils/authStorage";
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -16,7 +17,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const response = await authApi.login(credentials);
-          localStorage.setItem("token", response.token);
+          setStoredToken(response.token);
           localStorage.setItem("role", response.user.role);
           set({
             user: response.user,
@@ -31,15 +32,14 @@ export const useAuthStore = create<AuthState>()(
             error:
               error.response?.data?.detail ||
               error.response?.data?.message ||
-              "Đăng nhập thất bại",
+              "Dang nhap that bai",
           });
           throw error;
         }
       },
 
       logout: () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
+        clearStoredAuth();
         set({
           user: null,
           token: null,

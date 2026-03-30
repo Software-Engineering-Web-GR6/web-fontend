@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useSensorStore } from "../../store";
-import { formatChartTime } from "../../utils/formatters";
+import { buildThirtySecondStepLabels } from "../../utils/formatters";
 import { CHART_COLORS } from "../../utils/constants";
 
 interface TempLineChartProps {
@@ -21,8 +21,21 @@ export const TempLineChart: React.FC<TempLineChartProps> = ({
 }) => {
   const { history } = useSensorStore();
 
-  const data = history.slice(-20).map((item) => ({
-    time: formatChartTime(item.timestamp),
+  const rawData = history
+    .slice(-20)
+    .sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+    );
+
+  const labels = buildThirtySecondStepLabels(
+    rawData.length,
+    rawData[rawData.length - 1]?.timestamp,
+  );
+
+  const data = rawData.map((item, index) => ({
+    timestamp: item.timestamp,
+    time: labels[index],
     value: item.temp,
   }));
 
@@ -48,7 +61,7 @@ export const TempLineChart: React.FC<TempLineChartProps> = ({
           tick={{ fontSize: 12, fill: "#6b7280" }}
           axisLine={{ stroke: "#e5e7eb" }}
           tickLine={{ stroke: "#e5e7eb" }}
-          domain={["auto", "auto"]}
+          domain={[18, 35]}
           unit="°C"
         />
         <Tooltip

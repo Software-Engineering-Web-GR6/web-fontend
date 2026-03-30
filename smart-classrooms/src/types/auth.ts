@@ -10,6 +10,17 @@ export interface User {
   avatar?: string;
 }
 
+export interface UserRoomAccess {
+  id: number;
+  user_id: number;
+  room_id: number;
+  shift_number: number;
+  day_of_week: number;
+  created_at: string;
+}
+
+export type UserScheduleEntry = UserRoomAccess;
+
 export interface LoginCredentials {
   username: string;
   password: string;
@@ -18,6 +29,11 @@ export interface LoginCredentials {
 export interface LoginResponse {
   user: User;
   token: string;
+}
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
 }
 
 export interface AuthState {

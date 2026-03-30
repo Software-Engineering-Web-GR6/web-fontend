@@ -1,8 +1,11 @@
 // Constants
+const browserHost =
+  typeof window !== "undefined" ? window.location.hostname : "127.0.0.1";
+
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:8000";
+  import.meta.env.VITE_API_URL || `http://${browserHost}:8000`;
 export const SOCKET_URL =
-  import.meta.env.VITE_SOCKET_URL || "ws://localhost:8000/ws/alerts";
+  import.meta.env.VITE_SOCKET_URL || `ws://${browserHost}:8000/ws/alerts`;
 
 // Sensor Constants
 export const DEFAULT_TEMP = 25;

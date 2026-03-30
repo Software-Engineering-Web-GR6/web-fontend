@@ -1,12 +1,13 @@
-import { useEffect, useCallback } from "react";
-import { useSensorStore } from "../store";
+import { useCallback, useEffect } from "react";
 import { useAlertStore } from "../store";
+import { useDeviceStore } from "../store";
+import { useSensorStore } from "../store";
 import { useThresholdStore } from "../store";
-import { sensorApi, socketService } from "../services";
+import { deviceApi, sensorApi, socketService } from "../services";
 import type { SensorData, SensorHistory } from "../types";
-import { getAlertLevel, createAlert, isWithinThresholds } from "../utils";
+import { createAlert, getAlertLevel, isWithinThresholds } from "../utils";
 
-export const useSensor = () => {
+export const useSensor = (roomId: number | null = 1) => {
   const {
     temp,
     humidity,
@@ -14,18 +15,19 @@ export const useSensor = () => {
     history,
     isConnected,
     setSensorData,
+    setHistory,
     addHistory,
+    reset,
     setConnected,
   } = useSensorStore();
+  const { syncDevices } = useDeviceStore();
   const { addAlert } = useAlertStore();
   const threshold = useThresholdStore();
 
-  // Handle incoming sensor data
   const handleSensorData = useCallback(
     (data: SensorData) => {
       setSensorData(data);
 
-      // Add to history
       const historyItem: SensorHistory = {
         id: `sensor-${Date.now()}`,
         temp: data.temp,
@@ -35,7 +37,6 @@ export const useSensor = () => {
       };
       addHistory(historyItem);
 
-      // Check thresholds and create alerts if needed
       const { valid, issues } = isWithinThresholds(
         data.temp,
         data.humidity,
@@ -44,71 +45,101 @@ export const useSensor = () => {
       if (!valid) {
         const alertLevel = getAlertLevel(data.temp, data.humidity, threshold);
         if (alertLevel) {
-          const message = issues.join(", ");
-          const alert = createAlert(alertLevel, "temperature", message);
-          addAlert(alert);
+          addAlert(createAlert(alertLevel, "temperature", issues.join(", ")));
         }
       }
     },
-    [setSensorData, addHistory, addAlert, threshold],
+    [addAlert, addHistory, setSensorData, threshold],
   );
 
-  // Connect to socket on mount
+  const syncLatestSensorData = useCallback(
+    (data: SensorData) => {
+      setSensorData(data);
+
+      const { valid, issues } = isWithinThresholds(
+        data.temp,
+        data.humidity,
+        threshold,
+      );
+
+      if (!valid) {
+        const alertLevel = getAlertLevel(data.temp, data.humidity, threshold);
+        if (alertLevel) {
+          addAlert(createAlert(alertLevel, "temperature", issues.join(", ")));
+        }
+      }
+    },
+    [addAlert, setSensorData, threshold],
+  );
+
   useEffect(() => {
     let isMounted = true;
+    reset();
 
-    const fetchLatest = async () => {
+    if (roomId == null) {
+      setConnected(false);
+      syncDevices([]);
+      setHistory([]);
+      return () => {
+        isMounted = false;
+        setConnected(false);
+      };
+    }
+
+    const fetchRoomData = async () => {
       try {
-        const latest = await sensorApi.getCurrent(1);
+        const [latest, historyData, devices] = await Promise.all([
+          sensorApi.getCurrent(roomId),
+          sensorApi.getHistory(roomId, 10),
+          deviceApi.getAll(roomId),
+        ]);
+
         if (!isMounted) {
           return;
         }
-        handleSensorData({
-          temp: latest.temp,
-          humidity: latest.humidity,
-          co2: latest.co2,
-          timestamp: latest.timestamp,
-        });
+
+        setHistory(historyData);
+        syncDevices(devices);
+        syncLatestSensorData(latest);
       } catch (error) {
-        console.error("Failed to fetch latest sensor data", error);
+        console.error("Failed to fetch room data", error);
       }
     };
 
     socketService.connect();
     setConnected(socketService.isConnected());
 
-    const unsubscribe = socketService.onSensorData(handleSensorData);
-    const pollInterval = setInterval(fetchLatest, 5000);
+    const unsubscribe = socketService.onSensorData((data) => {
+      if (isMounted && (!data.roomId || data.roomId === roomId)) {
+        handleSensorData(data);
+      }
+    });
+
+    const pollInterval = setInterval(fetchRoomData, 5000);
     const connectionInterval = setInterval(() => {
       if (isMounted) {
         setConnected(socketService.isConnected());
       }
     }, 1000);
 
-    fetchLatest();
-
-    // fallback simulated values when backend has no data yet
-    const simulationInterval = setInterval(() => {
-      if (isMounted && history.length === 0) {
-        const simulatedData: SensorData = {
-          temp: 22 + Math.random() * 10,
-          humidity: 50 + Math.random() * 30,
-          co2: 650 + Math.random() * 500,
-          timestamp: new Date().toISOString(),
-        };
-        handleSensorData(simulatedData);
-      }
-    }, 7000);
+    fetchRoomData();
 
     return () => {
       isMounted = false;
       unsubscribe();
       clearInterval(pollInterval);
       clearInterval(connectionInterval);
-      clearInterval(simulationInterval);
       setConnected(false);
     };
-  }, [handleSensorData, history.length, setConnected]);
+  }, [
+    handleSensorData,
+    reset,
+    roomId,
+    setConnected,
+    setHistory,
+    syncLatestSensorData,
+    syncDevices,
+  ]);
 
   return {
     temp,

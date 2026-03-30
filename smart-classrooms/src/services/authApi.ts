@@ -1,5 +1,13 @@
 import api from "./api";
-import type { LoginCredentials, LoginResponse, User } from "../types";
+import type {
+  ChangePasswordPayload,
+  LoginCredentials,
+  LoginResponse,
+  User,
+  UserScheduleEntry,
+  UserRoomAccess,
+} from "../types";
+import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
 
 export interface AdminUser {
   id: number;
@@ -8,6 +16,14 @@ export interface AdminUser {
   role: "admin" | "user";
   created_at: string;
 }
+
+const mapAdminUserToClientUser = (user: AdminUser): User => ({
+  id: String(user.id),
+  username: user.email.includes("@") ? user.email.split("@")[0] : user.email,
+  email: user.email,
+  role: user.role,
+  fullName: user.full_name,
+});
 
 export interface CreateUserPayload {
   full_name: string;
@@ -50,12 +66,11 @@ export const authApi = {
   },
 
   logout: async (): Promise<void> => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
+    clearStoredAuth();
   },
 
   getCurrentUser: async (): Promise<User> => {
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       throw new Error("No token found");
     }
@@ -78,7 +93,7 @@ export const authApi = {
   },
 
   verifyToken: async (): Promise<boolean> => {
-    const token = localStorage.getItem("token");
+    const token = getStoredToken();
     if (!token) {
       return false;
     }
@@ -96,6 +111,101 @@ export const authApi = {
     return response.data;
   },
 
+  getMe: async (): Promise<User> => {
+    const response = await api.get<AdminUser>("/api/v1/auth/me");
+    return mapAdminUserToClientUser(response.data);
+  },
+
+  getMyRoomAccess: async (): Promise<UserRoomAccess[]> => {
+    const response = await api.get<UserRoomAccess[]>("/api/v1/auth/me/room-access");
+    return response.data;
+  },
+
+  getMySchedule: async (): Promise<UserScheduleEntry[]> => {
+    const response = await api.get<UserScheduleEntry[]>("/api/v1/auth/me/schedule");
+    return response.data;
+  },
+
+  getUserRoomAccess: async (userId: number): Promise<UserRoomAccess[]> => {
+    const response = await api.get<UserRoomAccess[]>(
+      `/api/v1/auth/users/${userId}/room-access`,
+    );
+    return response.data;
+  },
+
+  getUserSchedule: async (userId: number): Promise<UserScheduleEntry[]> => {
+    const response = await api.get<UserScheduleEntry[]>(
+      `/api/v1/auth/users/${userId}/schedule`,
+    );
+    return response.data;
+  },
+
+  getRoomOccupancy: async (roomId: number): Promise<UserRoomAccess[]> => {
+    const response = await api.get<UserRoomAccess[]>(
+      `/api/v1/auth/rooms/${roomId}/room-access`,
+    );
+    return response.data;
+  },
+
+  getRoomSchedule: async (roomId: number): Promise<UserScheduleEntry[]> => {
+    const response = await api.get<UserScheduleEntry[]>(
+      `/api/v1/auth/rooms/${roomId}/schedule`,
+    );
+    return response.data;
+  },
+
+  grantRoomAccess: async (
+    userId: number,
+    payload: { room_id: number; shifts: number[]; days_of_week: number[] },
+  ): Promise<UserRoomAccess[]> => {
+    const response = await api.post<UserRoomAccess[]>(
+      `/api/v1/auth/users/${userId}/room-access`,
+      payload,
+    );
+    return response.data;
+  },
+
+  assignSchedule: async (
+    userId: number,
+    payload: { room_id: number; shifts: number[]; days_of_week: number[] },
+  ): Promise<UserScheduleEntry[]> => {
+    const response = await api.post<UserScheduleEntry[]>(
+      `/api/v1/auth/users/${userId}/schedule`,
+      payload,
+    );
+    return response.data;
+  },
+
+  revokeRoomAccess: async (
+    userId: number,
+    roomId: number,
+    shiftNumber: number,
+    dayOfWeek: number,
+  ): Promise<void> => {
+    await api.delete(`/api/v1/auth/users/${userId}/room-access`, {
+      params: {
+        room_id: roomId,
+        shift_number: shiftNumber,
+        day_of_week: dayOfWeek,
+      },
+    });
+  },
+
+  removeScheduleSlot: async (
+    userId: number,
+    roomId: number,
+    shiftNumber: number,
+    dayOfWeek: number,
+  ): Promise<void> => {
+    await api.delete(`/api/v1/auth/users/${userId}/schedule`, {
+      params: {
+        room_id: roomId,
+        shift_number: shiftNumber,
+        day_of_week: dayOfWeek,
+      },
+    });
+  },
+
   createUser: async (payload: CreateUserPayload): Promise<AdminUser> => {
     const response = await api.post<AdminUser>("/api/v1/auth/users", payload);
     return response.data;
@@ -104,11 +214,21 @@ export const authApi = {
   deleteUser: async (userId: number): Promise<void> => {
     await api.delete(`/api/v1/auth/users/${userId}`);
   },
+
+  changeMyPassword: async (payload: ChangePasswordPayload): Promise<void> => {
+    await api.put("/api/v1/auth/me/password", payload);
+  },
+
 };
 
 function parseJwtPayload(
   token: string,
-): { sub?: string | number; email?: string; role?: string; exp?: number } | null {
+): {
+  sub?: string | number;
+  email?: string;
+  role?: string;
+  exp?: number;
+} | null {
   try {
     const parts = token.split(".");
     if (parts.length < 2) {

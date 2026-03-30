@@ -2,11 +2,41 @@ import { create } from "zustand";
 import type { DeviceState } from "../types";
 
 export const useDeviceStore = create<DeviceState>((set) => ({
+  devices: [],
   fanOn: false,
-  lightOn: true,
+  lightOn: false,
   acOn: false,
   acTemp: 24,
   lastUpdated: new Date().toISOString(),
+
+  syncDevices: (devices) => {
+    const lastUpdated = devices[0]?.lastUpdated ?? new Date().toISOString();
+    set({
+      devices,
+      fanOn: devices.some((device) => device.type === "fan" && device.status),
+      lightOn: devices.some((device) => device.type === "light" && device.status),
+      acOn: devices.some((device) => device.type === "ac" && device.status),
+      acTemp: devices.find((device) => device.type === "ac")?.targetTemp ?? 24,
+      lastUpdated,
+    });
+  },
+
+  updateDevice: (device) => {
+    set((state) => {
+      const devices = state.devices.some((item) => item.id === device.id)
+        ? state.devices.map((item) => (item.id === device.id ? device : item))
+        : [...state.devices, device];
+
+      return {
+        devices,
+        fanOn: devices.some((item) => item.type === "fan" && item.status),
+        lightOn: devices.some((item) => item.type === "light" && item.status),
+        acOn: devices.some((item) => item.type === "ac" && item.status),
+        acTemp: devices.find((item) => item.type === "ac")?.targetTemp ?? state.acTemp,
+        lastUpdated: device.lastUpdated,
+      };
+    });
+  },
 
   setFanOn: (on: boolean) => {
     set({
@@ -15,9 +45,9 @@ export const useDeviceStore = create<DeviceState>((set) => ({
     });
   },
 
-  setLightOn: (on: boolean) => {
+  setLightOn: (open: boolean) => {
     set({
-      lightOn: on,
+      lightOn: open,
       lastUpdated: new Date().toISOString(),
     });
   },

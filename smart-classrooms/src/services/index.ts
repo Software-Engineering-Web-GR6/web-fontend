@@ -4,3 +4,6 @@ export { deviceApi } from "./deviceApi";
 export { thresholdApi } from "./thresholdApi";
 export { socketService } from "./socket";
 export { authApi } from "./authApi";
+export { roomApi } from "./roomApi";
+export { alertApi } from "./alertApi";
+export { ruleApi } from "./ruleApi";
