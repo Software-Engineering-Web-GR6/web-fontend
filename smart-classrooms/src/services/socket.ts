@@ -3,7 +3,7 @@ import type { SensorData } from "../types";
 
 class SocketService {
   private socket: WebSocket | null = null;
-  private listeners: Map<string, Set<(data: SensorData) => void>> = new Map();
+  private listeners: Map<string, Set<(data: any) => void>> = new Map();
 
   connect(): void {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
@@ -31,6 +31,12 @@ class SocketService {
     this.socket.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
+        if (
+          payload?.event === "new_alert" ||
+          payload?.event === "resolved_alert"
+        ) {
+          this.notifyListeners("alertEvent", payload);
+        }
         const sensorData = mapMessageToSensorData(payload);
         if (sensorData) {
           this.notifyListeners("sensorData", sensorData);
@@ -53,9 +59,15 @@ class SocketService {
     return this.subscribe("sensorData", callback);
   }
 
+  onAlertEvent(
+    callback: (data: { event: string; alert: Record<string, unknown> }) => void,
+  ): () => void {
+    return this.subscribe("alertEvent", callback);
+  }
+
   private subscribe(
     event: string,
-    callback: (data: SensorData) => void,
+    callback: (data: any) => void,
   ): () => void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
@@ -67,7 +79,7 @@ class SocketService {
     };
   }
 
-  private notifyListeners(event: string, data: SensorData): void {
+  private notifyListeners(event: string, data: any): void {
     this.listeners.get(event)?.forEach((callback) => {
       try {
         callback(data);
@@ -91,6 +103,25 @@ function mapMessageToSensorData(payload: unknown): SensorData | null {
   }
 
   const data = payload as Record<string, unknown>;
+
+  if (data.event === "sensor_reading" && data.reading && typeof data.reading === "object") {
+    const reading = data.reading as Record<string, unknown>;
+    if (
+      typeof reading.temperature === "number" &&
+      typeof reading.humidity === "number"
+    ) {
+      return {
+        roomId: typeof reading.room_id === "number" ? reading.room_id : undefined,
+        temp: reading.temperature,
+        humidity: reading.humidity,
+        co2: typeof reading.co2 === "number" ? reading.co2 : 800,
+        timestamp:
+          typeof reading.recorded_at === "string"
+            ? reading.recorded_at
+            : new Date().toISOString(),
+      };
+    }
+  }
 
   if (typeof data.temp === "number" && typeof data.humidity === "number") {
     return {

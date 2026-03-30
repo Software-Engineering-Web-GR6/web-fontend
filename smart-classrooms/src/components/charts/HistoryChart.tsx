@@ -10,7 +10,7 @@ import {
   Legend,
 } from "recharts";
 import { useSensorStore } from "../../store";
-import { formatChartTime } from "../../utils/formatters";
+import { buildThirtySecondStepLabels } from "../../utils/formatters";
 import { CHART_COLORS } from "../../utils/constants";
 
 interface HistoryChartProps {
@@ -20,8 +20,21 @@ interface HistoryChartProps {
 export const HistoryChart: React.FC<HistoryChartProps> = ({ height = 300 }) => {
   const { history } = useSensorStore();
 
-  const data = history.slice(-30).map((item) => ({
-    time: formatChartTime(item.timestamp),
+  const rawData = history
+    .slice(-30)
+    .sort(
+      (left, right) =>
+        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+    );
+
+  const labels = buildThirtySecondStepLabels(
+    rawData.length,
+    rawData[rawData.length - 1]?.timestamp,
+  );
+
+  const data = rawData.map((item, index) => ({
+    timestamp: item.timestamp,
+    time: labels[index],
     temp: item.temp,
     humidity: item.humidity,
   }));

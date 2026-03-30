@@ -23,13 +23,18 @@ export const sensorApi = {
       { params },
     );
 
-    return response.data.map((item) => ({
-      id: String(item.id),
-      temp: item.temperature ?? 0,
-      humidity: item.humidity ?? 0,
-      co2: item.co2 ?? 800,
-      timestamp: item.recorded_at,
-    }));
+    return response.data
+      .map((item) => ({
+        id: String(item.id),
+        temp: item.temperature ?? 0,
+        humidity: item.humidity ?? 0,
+        co2: item.co2 ?? 800,
+        timestamp: item.recorded_at,
+      }))
+      .sort(
+        (left, right) =>
+          new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+      );
   },
 
   getCurrent: async (roomId: number = DEFAULT_ROOM_ID) => {

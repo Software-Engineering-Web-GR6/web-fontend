@@ -7,6 +7,7 @@ interface BackendDevice {
   name: string;
   device_type: string;
   state: string;
+  target_temp: number;
   last_updated: string;
 }
 
@@ -16,7 +17,7 @@ const mapBackendTypeToFrontend = (deviceType: string): Device["type"] => {
   if (deviceType === "air_conditioner") {
     return "ac";
   }
-  if (deviceType === "window") {
+  if (deviceType === "light" || deviceType === "window") {
     return "light";
   }
   return "fan";
@@ -24,11 +25,21 @@ const mapBackendTypeToFrontend = (deviceType: string): Device["type"] => {
 
 const mapBackendDevice = (device: BackendDevice): Device => ({
   id: String(device.id),
+  roomId: device.room_id,
   name: device.name,
   type: mapBackendTypeToFrontend(device.device_type),
+  index: Number(device.name.match(/(\d+)$/)?.[1] ?? 1),
   status: ["ON", "OPEN"].includes(device.state.toUpperCase()),
+  targetTemp: device.target_temp,
   lastUpdated: device.last_updated,
 });
+
+const mapTypeToBackend = (deviceType: Device["type"]) => {
+  if (deviceType === "ac") {
+    return "air_conditioner";
+  }
+  return deviceType;
+};
 
 export const deviceApi = {
   getAll: async (roomId: number = DEFAULT_ROOM_ID): Promise<Device[]> => {
@@ -36,55 +47,70 @@ export const deviceApi = {
     return response.data.map(mapBackendDevice);
   },
 
-  control: async (
-    deviceId: string,
+  controlOne: async (
+    deviceId: string | number,
     action: "turnOn" | "turnOff",
-    roomId: number = DEFAULT_ROOM_ID,
   ): Promise<Device> => {
-    const listResponse = await api.get<BackendDevice[]>(`/api/v1/devices/${roomId}`);
-    const devices = listResponse.data;
-
-    const target =
-      /^\d+$/.test(deviceId)
-        ? devices.find((item) => item.id === Number(deviceId))
-        : devices.find((item) => {
-          if (deviceId === "fan") {
-            return item.device_type === "fan";
-          }
-          if (deviceId === "ac") {
-            return item.device_type === "air_conditioner";
-          }
-          if (deviceId === "light") {
-            return item.device_type === "window";
-          }
-          return false;
-        });
-
-    if (!target) {
-      throw new Error("Device not found");
-    }
-
-    const backendAction =
-      target.device_type === "window"
-        ? action === "turnOn"
-          ? "OPEN"
-          : "CLOSE"
-        : action === "turnOn"
-          ? "ON"
-          : "OFF";
+    const backendAction = action === "turnOn" ? "ON" : "OFF";
 
     const response = await api.post<BackendDevice>(
-      `/api/v1/devices/${target.id}/control`,
+      `/api/v1/devices/${deviceId}/control`,
       { action: backendAction },
     );
 
     return mapBackendDevice(response.data);
   },
 
+  controlGroup: async (
+    deviceType: Device["type"],
+    action: "turnOn" | "turnOff",
+    roomId: number = DEFAULT_ROOM_ID,
+  ): Promise<Device[]> => {
+    const devices = await deviceApi.getAll(roomId);
+    const targets = devices.filter((device) => device.type === deviceType);
+
+    const updates = await Promise.all(
+      targets.map((device) => deviceApi.controlOne(device.id, action)),
+    );
+
+    return updates;
+  },
+
   controlFan: async (
     action: "turnOn" | "turnOff",
     roomId: number = DEFAULT_ROOM_ID,
+  ): Promise<Device[]> => {
+    return deviceApi.controlGroup("fan", action, roomId);
+  },
+
+  controlByTypeAndIndex: async (
+    deviceType: Device["type"],
+    index: number,
+    action: "turnOn" | "turnOff",
+    roomId: number = DEFAULT_ROOM_ID,
   ): Promise<Device> => {
-    return deviceApi.control("fan", action, roomId);
+    const listResponse = await api.get<BackendDevice[]>(`/api/v1/devices/${roomId}`);
+    const target = listResponse.data.find(
+      (device) =>
+        device.device_type === mapTypeToBackend(deviceType) &&
+        Number(device.name.match(/(\d+)$/)?.[1] ?? 1) === index,
+    );
+
+    if (!target) {
+      throw new Error("Device not found");
+    }
+
+    return deviceApi.controlOne(target.id, action);
+  },
+
+  updateAcTemperature: async (
+    deviceId: string | number,
+    targetTemp: number,
+  ): Promise<Device> => {
+    const response = await api.put<BackendDevice>(
+      `/api/v1/devices/${deviceId}/temperature`,
+      { target_temp: targetTemp },
+    );
+    return mapBackendDevice(response.data);
   },
 };

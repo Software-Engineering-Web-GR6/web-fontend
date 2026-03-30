@@ -5,6 +5,7 @@ import AdminAlerts from "../pages/admin/Alerts";
 import AdminDevices from "../pages/admin/Devices";
 import AdminSettings from "../pages/admin/Settings";
 import AdminUsers from "../pages/admin/Users";
+import ProfilePage from "../pages/Profile";
 import UserDashboard from "../pages/user/Dashboard";
 import UserHistory from "../pages/user/History";
 import UserAlerts from "../pages/user/Alerts";
@@ -76,6 +77,14 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/profile"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <ProfilePage isAdmin={true} />
+          </ProtectedRoute>
+        }
+      />
 
       {/* User Routes */}
       <Route
@@ -99,6 +108,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={["user"]}>
             <UserAlerts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/profile"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <ProfilePage isAdmin={false} />
           </ProtectedRoute>
         }
       />
