@@ -6,7 +6,11 @@ class SocketService {
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
 
   connect(): void {
-    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
@@ -22,6 +26,7 @@ class SocketService {
 
     this.socket.onclose = () => {
       console.log("WebSocket disconnected");
+      this.socket = null;
     };
 
     this.socket.onerror = (error) => {
