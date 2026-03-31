@@ -11,9 +11,8 @@ export const useDeviceControl = (roomId: number = 1) => {
     acOn,
     acTemp,
     syncDevices,
+    updateDevice,
     setFanOn,
-    setLightOn,
-    setAcOn,
     setAcTemp,
     setLastUpdated,
   } = useDeviceStore();
@@ -28,73 +27,105 @@ export const useDeviceControl = (roomId: number = 1) => {
     return latestDevices;
   }, [roomId, setLastUpdated, syncDevices]);
 
+  const mergeUpdatedDevices = useCallback(
+    (updatedDevices: Device[]) => {
+      if (updatedDevices.length === 0) {
+        return;
+      }
+
+      const updatedById = new Map(updatedDevices.map((device) => [device.id, device]));
+      const nextDevices = devices.map((device) => updatedById.get(device.id) ?? device);
+
+      syncDevices(nextDevices);
+      setLastUpdated(
+        updatedDevices.reduce(
+          (latest, device) => (device.lastUpdated > latest ? device.lastUpdated : latest),
+          updatedDevices[0].lastUpdated,
+        ),
+      );
+    },
+    [devices, setLastUpdated, syncDevices],
+  );
+
+  const toggleGroup = useCallback(
+    async (deviceType: DeviceType, nextStatus: boolean, loadingKey: string, fallbackError: string) => {
+      const targets = devices.filter((device) => device.type === deviceType);
+      const previousTargets = targets.map((device) => ({ ...device }));
+
+      try {
+        setError(null);
+        setLoading(true);
+        setLoadingTarget(loadingKey);
+
+        const optimisticTime = new Date().toISOString();
+        previousTargets.forEach((device) =>
+          updateDevice({
+            ...device,
+            status: nextStatus,
+            lastUpdated: optimisticTime,
+          }),
+        );
+
+        const updatedDevices = await Promise.all(
+          targets.map((device) => deviceApi.controlOne(device.id, nextStatus ? "turnOn" : "turnOff")),
+        );
+        mergeUpdatedDevices(updatedDevices);
+      } catch (err: any) {
+        previousTargets.forEach((device) => updateDevice(device));
+        setError(err?.response?.data?.detail || fallbackError);
+        console.error(err);
+      } finally {
+        setLoading(false);
+        setLoadingTarget(null);
+      }
+    },
+    [devices, mergeUpdatedDevices, updateDevice],
+  );
+
   const toggleFan = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      setLoadingTarget("fan");
-      await deviceApi.controlFan(fanOn ? "turnOff" : "turnOn", roomId);
-      const latestDevices = await refreshRoomDevices();
-      setFanOn(latestDevices.some((device) => device.type === "fan" && device.status));
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Không thể điều khiển quạt");
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setLoadingTarget(null);
-    }
-  }, [fanOn, refreshRoomDevices, roomId, setFanOn]);
+    await toggleGroup("fan", !fanOn, "fan", "Khong the dieu khien quat");
+  }, [fanOn, toggleGroup]);
 
   const toggleLight = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      setLoadingTarget("light");
-      await deviceApi.controlGroup("light", lightOn ? "turnOff" : "turnOn", roomId);
-      const latestDevices = await refreshRoomDevices();
-      setLightOn(latestDevices.some((device) => device.type === "light" && device.status));
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Không thể điều khiển đèn");
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setLoadingTarget(null);
-    }
-  }, [lightOn, refreshRoomDevices, roomId, setLightOn]);
+    await toggleGroup("light", !lightOn, "light", "Khong the dieu khien den");
+  }, [lightOn, toggleGroup]);
 
   const toggleAc = useCallback(async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      setLoadingTarget("ac");
-      await deviceApi.controlGroup("ac", acOn ? "turnOff" : "turnOn", roomId);
-      const latestDevices = await refreshRoomDevices();
-      setAcOn(latestDevices.some((device) => device.type === "ac" && device.status));
-    } catch (err: any) {
-      setError(err?.response?.data?.detail || "Không thể điều khiển điều hòa");
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setLoadingTarget(null);
-    }
-  }, [acOn, refreshRoomDevices, roomId, setAcOn]);
+    await toggleGroup("ac", !acOn, "ac", "Khong the dieu khien dieu hoa");
+  }, [acOn, toggleGroup]);
 
   const toggleDevice = useCallback(
     async (deviceType: DeviceType, index: number, nextStatus: boolean): Promise<Device | null> => {
+      const target = devices.find((device) => device.type === deviceType && device.index === index);
+
       try {
         setError(null);
         setLoading(true);
         setLoadingTarget(`${deviceType}-${index}`);
-        await deviceApi.controlByTypeAndIndex(
-          deviceType,
-          index,
-          nextStatus ? "turnOn" : "turnOff",
-          roomId,
-        );
-        const latestDevices = await refreshRoomDevices();
-        return latestDevices.find((device) => device.type === deviceType && device.index === index) ?? null;
+
+        if (!target) {
+          return await deviceApi.controlByTypeAndIndex(
+            deviceType,
+            index,
+            nextStatus ? "turnOn" : "turnOff",
+            roomId,
+          );
+        }
+
+        updateDevice({
+          ...target,
+          status: nextStatus,
+          lastUpdated: new Date().toISOString(),
+        });
+
+        const updated = await deviceApi.controlOne(target.id, nextStatus ? "turnOn" : "turnOff");
+        updateDevice(updated);
+        return updated;
       } catch (err: any) {
-        setError(err?.response?.data?.detail || "Không thể điều khiển thiết bị");
+        if (target) {
+          updateDevice(target);
+        }
+        setError(err?.response?.data?.detail || "Khong the dieu khien thiet bi");
         console.error(err);
         return null;
       } finally {
@@ -102,31 +133,49 @@ export const useDeviceControl = (roomId: number = 1) => {
         setLoadingTarget(null);
       }
     },
-    [refreshRoomDevices, roomId],
+    [devices, roomId, updateDevice],
   );
 
   const changeAcTemp = useCallback(
     async (temp: number) => {
+      let previousDevices: Device[] = [];
+
       try {
         setError(null);
         setLoading(true);
         setLoadingTarget("ac-temp");
-        const latestDevices = await deviceApi.getAll(roomId);
-        const acDevices = latestDevices.filter((device) => device.type === "ac");
-        await Promise.all(
+
+        let acDevices = devices.filter((device) => device.type === "ac");
+        if (acDevices.length === 0) {
+          acDevices = (await deviceApi.getAll(roomId)).filter((device) => device.type === "ac");
+        }
+
+        previousDevices = acDevices.map((device) => ({ ...device }));
+        const optimisticTime = new Date().toISOString();
+
+        previousDevices.forEach((device) =>
+          updateDevice({
+            ...device,
+            targetTemp: temp,
+            lastUpdated: optimisticTime,
+          }),
+        );
+
+        const updatedDevices = await Promise.all(
           acDevices.map((device) => deviceApi.updateAcTemperature(device.id, temp)),
         );
-        const refreshed = await refreshRoomDevices();
-        setAcTemp(refreshed.find((device) => device.type === "ac")?.targetTemp ?? temp);
+        mergeUpdatedDevices(updatedDevices);
+        setAcTemp(updatedDevices[0]?.targetTemp ?? temp);
       } catch (err: any) {
-        setError(err?.response?.data?.detail || "Không thể cập nhật nhiệt độ điều hòa");
+        previousDevices.forEach((device) => updateDevice(device));
+        setError(err?.response?.data?.detail || "Khong the cap nhat nhiet do dieu hoa");
         console.error(err);
       } finally {
         setLoading(false);
         setLoadingTarget(null);
       }
     },
-    [refreshRoomDevices, roomId, setAcTemp],
+    [devices, mergeUpdatedDevices, roomId, setAcTemp, updateDevice],
   );
 
   const setFan = useCallback(
@@ -151,5 +200,6 @@ export const useDeviceControl = (roomId: number = 1) => {
     toggleDevice,
     changeAcTemp,
     setFan,
+    refreshRoomDevices,
   };
 };
