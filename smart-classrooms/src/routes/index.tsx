@@ -7,9 +7,11 @@ import AdminSettings from "../pages/admin/Settings";
 import AdminUsers from "../pages/admin/Users";
 import ProfilePage from "../pages/Profile";
 import UserDashboard from "../pages/user/Dashboard";
+import UserSchedule from "../pages/user/Schedule";
 import UserHistory from "../pages/user/History";
 import UserAlerts from "../pages/user/Alerts";
 import Login from "../pages/Login";
+import ForgotPassword from "../pages/ForgotPassword";
 import ProtectedRoute from "../components/layout/ProtectedRoute";
 import { useAuthStore } from "../store/authStore";
 
@@ -32,6 +34,16 @@ const AppRoutes: React.FC = () => {
             <Navigate to={getDefaultRedirect()} replace />
           ) : (
             <Login />
+          )
+        }
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          isAuthenticated ? (
+            <Navigate to={getDefaultRedirect()} replace />
+          ) : (
+            <ForgotPassword />
           )
         }
       />
@@ -92,6 +104,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={["user"]}>
             <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/user/schedule"
+        element={
+          <ProtectedRoute allowedRoles={["user"]}>
+            <UserSchedule />
           </ProtectedRoute>
         }
       />

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
+  ArrowLeft,
   Building2,
   CalendarDays,
   Check,
@@ -8,8 +9,9 @@ import {
   Layers3,
   Mail,
   MapPin,
-  Plus,
+  Search,
   Trash2,
+  UserPlus,
   UserRound,
 } from "lucide-react";
 import Layout from "../../components/layout/Layout";
@@ -21,6 +23,7 @@ import {
   buildRoomHierarchy,
   DAYS,
   getDayLabel,
+  formatDateTime,
   getRoomLabel,
   getShiftLabel,
   getShiftTime,
@@ -57,8 +60,23 @@ const Users: React.FC = () => {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [isScheduleViewOpen, setIsScheduleViewOpen] = useState(false);
 
   const normalUsers = useMemo(() => users.filter((user) => user.role === "user"), [users]);
+  const filteredUsers = useMemo(() => {
+    const keyword = userSearchQuery.trim().toLowerCase();
+    if (!keyword) {
+      return normalUsers;
+    }
+
+    return normalUsers.filter((user) => {
+      const name = user.full_name.toLowerCase();
+      const userEmail = user.email.toLowerCase();
+      return name.includes(keyword) || userEmail.includes(keyword);
+    });
+  }, [normalUsers, userSearchQuery]);
 
   const getApiErrorMessage = (err: any, fallback: string) => {
     const detail = err?.response?.data?.detail;
@@ -250,8 +268,30 @@ const Users: React.FC = () => {
     selectBuildingAndRoom(normalized.building, normalized.floor, room.id);
   };
 
+  const openScheduleView = (userId: number) => {
+    setSelectedUserId(userId);
+    setIsScheduleViewOpen(true);
+    setError(null);
+  };
+
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (fullName.trim().length < 3) {
+      setError("Ho ten nguoi dung phai co it nhat 3 ky tu.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Mat khau tam thoi phai co it nhat 8 ky tu.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Xac nhan mat khau khong khop.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -263,6 +303,7 @@ const Users: React.FC = () => {
       setFullName("");
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       await fetchUsers();
     } catch (err: any) {
       setError(getApiErrorMessage(err, "Tao tai khoan that bai."));
@@ -284,6 +325,7 @@ const Users: React.FC = () => {
       if (selectedUserId === userId) {
         setSelectedUserId(null);
         setAccesses([]);
+        setIsScheduleViewOpen(false);
       }
     } catch (err: any) {
       setError(getApiErrorMessage(err, "Xoa tai khoan that bai."));
@@ -346,73 +388,121 @@ const Users: React.FC = () => {
       subtitle="Moi nguoi dung co thoi khoa bieu rieng, va quyen su dung phong se tu mo dung theo ca dang dien ra"
       isAdmin={true}
     >
-      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card padding="sm" className="rounded-3xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Tong tai khoan</p>
-              <p className="text-3xl font-bold text-slate-900">{users.length}</p>
-            </div>
-            <UserRound className="h-6 w-6 text-slate-400" />
+      {!isScheduleViewOpen && (
+        <>
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card padding="sm" className="rounded-3xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Tong tai khoan</p>
+                  <p className="text-3xl font-bold text-slate-900">{users.length}</p>
+                </div>
+                <UserRound className="h-6 w-6 text-slate-400" />
+              </div>
+            </Card>
+            <Card padding="sm" className="rounded-3xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Quan tri vien</p>
+                  <p className="text-3xl font-bold text-indigo-600">
+                    {users.filter((user) => user.role === "admin").length}
+                  </p>
+                </div>
+                <Badge variant="info">Admin</Badge>
+              </div>
+            </Card>
+            <Card padding="sm" className="rounded-3xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-500">Nguoi dung thuong</p>
+                  <p className="text-3xl font-bold text-emerald-600">{normalUsers.length}</p>
+                </div>
+                <Badge variant="success">User</Badge>
+              </div>
+            </Card>
           </div>
-        </Card>
-        <Card padding="sm" className="rounded-3xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Quan tri vien</p>
-              <p className="text-3xl font-bold text-indigo-600">
-                {users.filter((user) => user.role === "admin").length}
-              </p>
-            </div>
-            <Badge variant="info">Admin</Badge>
-          </div>
-        </Card>
-        <Card padding="sm" className="rounded-3xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Nguoi dung thuong</p>
-              <p className="text-3xl font-bold text-emerald-600">{normalUsers.length}</p>
-            </div>
-            <Badge variant="success">User</Badge>
-          </div>
-        </Card>
-      </div>
 
-      <Card className="mb-6 rounded-3xl">
-        <CardHeader>
-          <CardTitle>Tao tai khoan moi</CardTitle>
-        </CardHeader>
-        <form onSubmit={handleCreateUser} className="grid grid-cols-1 gap-3 md:grid-cols-4">
-          <input
-            value={fullName}
-            onChange={(event) => setFullName(event.target.value)}
-            placeholder="Ho va ten"
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-            required
-          />
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Email"
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-            required
-          />
-          <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Mat khau"
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3"
-            minLength={6}
-            required
-          />
-          <Button type="submit" loading={submitting} className="w-full rounded-2xl">
-            <Plus className="mr-1 h-4 w-4" />
-            Tao tai khoan
-          </Button>
-        </form>
-      </Card>
+          <Card padding="none" className="mb-6 overflow-hidden rounded-3xl">
+            <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr]">
+              <div className="border-b border-slate-200 bg-[radial-gradient(circle_at_15%_20%,#dbeafe_0%,#f8fafc_45%,#ffffff_100%)] p-6 lg:border-b-0 lg:border-r">
+                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <p className="mt-5 text-xl font-semibold text-slate-900">Tao tai khoan nguoi dung</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Su dung mau tao tai khoan chuan cho lop hoc thong minh: day du thong tin, mat khau tam thoi ro rang va de ban giao.
+                </p>
+                <div className="mt-5 rounded-2xl border border-indigo-100 bg-white/90 px-4 py-3 text-xs text-slate-600">
+                  Goi y: Sau khi tao, hay yeu cau nguoi dung dang nhap va doi mat khau ngay trong lan dau su dung.
+                </div>
+              </div>
+
+              <form onSubmit={handleCreateUser} className="space-y-4 p-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">Ho va ten</span>
+                    <input
+                      value={fullName}
+                      onChange={(event) => setFullName(event.target.value)}
+                      placeholder="Nguyen Van A"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                      required
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">Email</span>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="giaovien@truong.edu.vn"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                      required
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">Mat khau tam thoi</span>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="It nhat 8 ky tu"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                      minLength={8}
+                      required
+                    />
+                  </label>
+
+                  <label className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700">Xac nhan mat khau</span>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      placeholder="Nhap lai mat khau"
+                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                      minLength={8}
+                      required
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs text-slate-600">
+                    Tai khoan moi duoc tao voi quyen user. Lich hoc va quyen phong duoc phan o ben duoi.
+                  </p>
+                  <Button type="submit" loading={submitting} className="rounded-2xl px-5">
+                    <UserPlus className="mr-1.5 h-4 w-4" />
+                    Tao tai khoan
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </Card>
+        </>
+      )}
 
       {error && (
         <div className="mb-5 flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
@@ -421,69 +511,25 @@ const Users: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[0.95fr_1.45fr]">
-        <Card padding="none" className="rounded-3xl">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-lg font-semibold text-slate-900">Danh sach nguoi dung</h2>
-            <Button size="sm" variant="secondary" onClick={fetchUsers} loading={loading}>
-              Lam moi
-            </Button>
-          </div>
-          <div className="space-y-3 p-4">
-            {normalUsers.map((user) => (
-              <div
-                key={user.id}
-                className={`rounded-3xl border p-4 transition ${
-                  selectedUserId === user.id
-                    ? "border-indigo-300 bg-indigo-50"
-                    : "border-slate-200 bg-white hover:bg-slate-50"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <button className="flex flex-1 items-start gap-3 text-left" onClick={() => setSelectedUserId(user.id)}>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
-                      <UserRound className="h-5 w-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-900">{user.full_name}</p>
-                      <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
-                        <Mail className="h-4 w-4" />
-                        {user.email}
-                      </p>
-                    </div>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" onClick={() => setSelectedUserId(user.id)}>
-                      Xem TKB
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={() => handleDeleteUser(user.id)}
-                      loading={deletingId === user.id}
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      Xoa
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
+      {isScheduleViewOpen ? (
         <Card className="rounded-3xl">
           <CardHeader>
-            <CardTitle>
-              {selectedUser ? `Thoi khoa bieu cua ${selectedUser.full_name}` : "Thoi khoa bieu nguoi dung"}
-            </CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle>
+                {selectedUser ? `Thoi khoa bieu cua ${selectedUser.full_name}` : "Thoi khoa bieu nguoi dung"}
+              </CardTitle>
+              <Button variant="secondary" onClick={() => setIsScheduleViewOpen(false)}>
+                <ArrowLeft className="mr-1.5 h-4 w-4" />
+                Quay lai quan ly nguoi dung
+              </Button>
+            </div>
           </CardHeader>
 
           {!selectedUser ? (
             <p className="text-sm text-slate-500">Chon mot tai khoan o ben trai de bat dau sap lich hoc hoac lich day.</p>
           ) : (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_0.85fr]">
+              <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="space-y-4">
                   <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#ffffff_100%)] p-5">
                     <div className="mb-4 flex items-start justify-between gap-4">
@@ -502,31 +548,30 @@ const Users: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                      <div className="grid min-w-[860px] grid-cols-[110px_repeat(7,minmax(100px,1fr))] overflow-hidden rounded-3xl border border-slate-200 bg-white">
-                        <div className="border-b border-r border-slate-200 bg-slate-50 px-4 py-4">
-                          <p className="text-sm font-semibold text-slate-900">Khung gio</p>
+                    <div>
+                      <div className="grid w-full grid-cols-[88px_repeat(7,minmax(0,1fr))] overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                        <div className="border-b border-r border-slate-200 bg-slate-50 px-2 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">Khung gio</p>
                           <p className="mt-1 text-xs text-slate-500">GMT+7</p>
                         </div>
                         {DAYS.map((day) => (
                           <div
                             key={day.value}
-                            className={`border-b border-slate-200 px-3 py-4 text-center ${
-                              selectedDay === day.value ? "bg-indigo-50" : "bg-slate-50"
-                            }`}
+                            className={`border-b border-slate-200 px-2 py-3 text-center ${selectedDay === day.value ? "bg-indigo-50" : "bg-slate-50"
+                              }`}
                           >
-                            <p className="font-semibold text-slate-900">{day.label}</p>
+                            <p className="text-sm font-semibold text-slate-900">{day.label}</p>
                             <p className="mt-1 text-xs text-slate-500">{day.shortLabel}</p>
                           </div>
                         ))}
 
                         {SHIFTS.map((shift) => (
                           <React.Fragment key={shift.value}>
-                            <div className="border-r border-slate-200 px-4 py-4">
+                            <div className="border-r border-slate-200 px-2 py-3">
                               <div className="flex items-start gap-3">
                                 <Clock3 className="mt-0.5 h-4 w-4 text-slate-400" />
                                 <div>
-                                  <p className="font-semibold text-slate-900">{getShiftLabel(shift.value)}</p>
+                                  <p className="text-sm font-semibold text-slate-900">{getShiftLabel(shift.value)}</p>
                                   <p className="mt-1 text-xs text-slate-500">{shift.time}</p>
                                 </div>
                               </div>
@@ -549,35 +594,34 @@ const Users: React.FC = () => {
                                       syncSelectionToRoom(room.id);
                                     }
                                   }}
-                                  className={`min-h-[136px] border-t border-slate-100 px-3 py-3 text-left align-top transition ${
-                                    isSelected
-                                      ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300"
-                                      : slot
-                                        ? "bg-emerald-50/70 hover:bg-emerald-50"
-                                        : "bg-white hover:bg-slate-50"
-                                  }`}
+                                  className={`min-h-[112px] border-t border-slate-100 px-2 py-2 text-left align-top transition ${isSelected
+                                    ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300"
+                                    : slot
+                                      ? "bg-emerald-50/70 hover:bg-emerald-50"
+                                      : "bg-white hover:bg-slate-50"
+                                    }`}
                                 >
                                   {slot ? (
-                                    <div className="flex h-full flex-col rounded-2xl border border-emerald-200 bg-white px-3 py-3 shadow-sm">
-                                      <div className="mb-2 rounded-xl bg-indigo-700 px-3 py-2 text-white">
-                                        <p className="text-sm font-semibold">{room ? getRoomLabel(room) : `Phong ${slot.access.room_id}`}</p>
+                                    <div className="flex h-full flex-col rounded-2xl border border-emerald-200 bg-white px-2 py-2 shadow-sm">
+                                      <div className="mb-2 rounded-xl bg-indigo-700 px-2 py-1.5 text-white">
+                                        <p className="text-xs font-semibold leading-tight">{room ? getRoomLabel(room) : `Phong ${slot.access.room_id}`}</p>
                                         <p className="mt-1 text-[11px] text-indigo-100">{shift.time}</p>
                                       </div>
-                                      <p className="line-clamp-2 text-sm font-medium text-slate-800">
+                                      <p className="line-clamp-2 text-xs font-medium text-slate-800">
                                         {room?.location ?? "Da xep trong thoi khoa bieu"}
                                       </p>
-                                      <div className="mt-auto flex items-center justify-between pt-3 text-xs text-slate-500">
+                                      <div className="mt-auto flex items-center justify-between pt-2 text-[11px] text-slate-500">
                                         <span>{day.shortLabel}</span>
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-emerald-700">
-                                          <Check className="h-3 w-3" />
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
+                                          <Check className="h-2.5 w-2.5" />
                                           Da xep
                                         </span>
                                       </div>
                                     </div>
                                   ) : (
                                     <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-center">
-                                      <p className="text-sm font-semibold text-slate-500">Trong</p>
-                                      <p className="mt-1 text-xs text-slate-400">Chon o de xep lich</p>
+                                      <p className="text-xs font-semibold text-slate-500">Trong</p>
+                                      <p className="mt-1 text-[11px] text-slate-400">Chon o de xep lich</p>
                                     </div>
                                   )}
                                 </button>
@@ -615,11 +659,10 @@ const Users: React.FC = () => {
                         <button
                           key={item.key}
                           onClick={() => selectBuildingAndRoom(item.key)}
-                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
-                            selectedBuilding === item.key
-                              ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                              : "border-slate-200 hover:bg-slate-50"
-                          }`}
+                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${selectedBuilding === item.key
+                            ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                            : "border-slate-200 hover:bg-slate-50"
+                            }`}
                         >
                           <Building2 className="h-5 w-5" />
                           <div>
@@ -643,11 +686,10 @@ const Users: React.FC = () => {
                           <button
                             key={item.floor}
                             onClick={() => selectFloorAndRoom(item.floor)}
-                            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
-                              selectedFloor === item.floor
-                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                                : "border-slate-200 hover:bg-slate-50"
-                            }`}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${selectedFloor === item.floor
+                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                              : "border-slate-200 hover:bg-slate-50"
+                              }`}
                           >
                             <Layers3 className="h-5 w-5" />
                             <div>
@@ -675,11 +717,10 @@ const Users: React.FC = () => {
                               setSelectedRoomId(room.id);
                               setError(null);
                             }}
-                            className={`w-full rounded-2xl border px-4 py-3 text-left ${
-                              selectedRoomId === room.id
-                                ? "border-sky-300 bg-sky-50"
-                                : "border-slate-200 hover:bg-slate-50"
-                            }`}
+                            className={`w-full rounded-2xl border px-4 py-3 text-left ${selectedRoomId === room.id
+                              ? "border-sky-300 bg-sky-50"
+                              : "border-slate-200 hover:bg-slate-50"
+                              }`}
                           >
                             <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
                             <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
@@ -730,7 +771,87 @@ const Users: React.FC = () => {
             </div>
           )}
         </Card>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          <Card padding="none" className="rounded-3xl">
+            <div className="space-y-4 border-b border-slate-100 px-5 py-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold text-slate-900">Danh sach nguoi dung</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Hien thi {filteredUsers.length}/{normalUsers.length} tai khoan user
+                  </p>
+                </div>
+                <Button size="sm" variant="secondary" onClick={fetchUsers} loading={loading}>
+                  Lam moi
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={userSearchQuery}
+                  onChange={(event) => setUserSearchQuery(event.target.value)}
+                  placeholder="Tim theo ten hoac email de xem lich nhanh hon"
+                  className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
+                />
+              </div>
+            </div>
+            <div className="space-y-3 p-4">
+              {filteredUsers.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
+                  <p className="text-sm font-medium text-slate-700">Khong tim thay nguoi dung phu hop</p>
+                  <p className="mt-1 text-xs text-slate-500">Thu doi tu khoa tim kiem hoac bam Lam moi danh sach.</p>
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <div
+                    key={user.id}
+                    className={`rounded-3xl border p-4 transition ${selectedUserId === user.id
+                      ? "border-indigo-300 bg-indigo-50"
+                      : "border-slate-200 bg-white hover:bg-slate-50"
+                      }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <button
+                        type="button"
+                        className="flex flex-1 items-start gap-3 text-left"
+                        onClick={() => setSelectedUserId(user.id)}
+                      >
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-indigo-100 text-indigo-700">
+                          <UserRound className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900">{user.full_name}</p>
+                          <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+                            <Mail className="h-4 w-4" />
+                            {user.email}
+                          </p>
+                          <p className="mt-2 text-xs text-slate-400">Tao luc: {formatDateTime(user.created_at)}</p>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" onClick={() => openScheduleView(user.id)}>
+                          Xem TKB
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDeleteUser(user.id)}
+                          loading={deletingId === user.id}
+                        >
+                          <Trash2 className="mr-1 h-4 w-4" />
+                          Xoa
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
     </Layout>
   );
 };

@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
   Bell,
+  CalendarDays,
   Fan,
   History,
   LayoutDashboard,
@@ -17,25 +18,46 @@ import { useAuthStore } from "../../store/authStore";
 
 interface SidebarProps {
   isAdmin?: boolean;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  isAdmin = true,
+  mobileOpen = false,
+  onCloseMobile,
+}) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    if (typeof window === "undefined") {
+      return true;
+    }
+
+    const stored = window.localStorage.getItem("smartclass.sidebar.expanded");
+    if (stored === null) {
+      return true;
+    }
+    return stored === "true";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem("smartclass.sidebar.expanded", String(expanded));
+  }, [expanded]);
 
   const adminLinks = [
-    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Tong quan" },
-    { path: "/admin/alerts", icon: Bell, label: "Canh bao" },
-    { path: "/admin/devices", icon: Fan, label: "Thiet bi" },
-    { path: "/admin/users", icon: Users, label: "Nguoi dung" },
-    { path: "/admin/settings", icon: Settings, label: "Cai dat" },
+    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Tổng quan" },
+    { path: "/admin/alerts", icon: Bell, label: "Cảnh báo" },
+    { path: "/admin/devices", icon: Fan, label: "Thiết bị" },
+    { path: "/admin/users", icon: Users, label: "Người dùng" },
+    { path: "/admin/settings", icon: Settings, label: "Cài đặt" },
   ];
 
   const userLinks = [
-    { path: "/user/dashboard", icon: LayoutDashboard, label: "Tong quan" },
-    { path: "/user/history", icon: History, label: "Lich su" },
-    { path: "/user/alerts", icon: Bell, label: "Canh bao" },
+    { path: "/user/dashboard", icon: LayoutDashboard, label: "Tổng quan" },
+    { path: "/user/schedule", icon: CalendarDays, label: "Thời khóa biểu" },
+    { path: "/user/history", icon: History, label: "Lịch sử" },
+    { path: "/user/alerts", icon: Bell, label: "Cảnh báo" },
   ];
 
   const links = isAdmin ? adminLinks : userLinks;
@@ -43,25 +65,28 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
   const handleLogout = () => {
     logout();
     navigate("/login");
+    onCloseMobile?.();
   };
 
   return (
     <aside
       className={clsx(
-        "flex h-full flex-col border-r border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] transition-all duration-300",
-        expanded ? "w-72" : "w-24",
+        "fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col border-r border-teal-100 bg-[linear-gradient(180deg,#f7fcfa_0%,#f9fdfc_40%,#eff7f4_100%)] shadow-2xl shadow-teal-900/10 transition-all duration-300",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        expanded ? "lg:w-72" : "lg:w-24",
+        "lg:static lg:z-20 lg:translate-x-0 lg:shadow-none",
       )}
     >
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
         className={clsx(
-          "border-b border-slate-200 px-4 py-6 text-left transition hover:bg-slate-50",
+          "hidden border-b border-teal-100 px-4 py-6 text-left transition hover:bg-teal-50/60 lg:block",
           expanded ? "w-full" : "flex justify-center",
         )}
       >
         <div className={clsx("flex items-center", expanded ? "gap-3" : "flex-col gap-3")}>
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-600/20">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600 shadow-lg shadow-teal-700/20">
             <Monitor className="h-6 w-6 text-white" />
           </div>
 
@@ -69,7 +94,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
             <>
               <div className="min-w-0 flex-1">
                 <h1 className="text-lg font-bold text-slate-900">SmartClass</h1>
-                <p className="text-xs text-slate-500">He thong lop hoc thong minh</p>
+                <p className="text-xs text-slate-500">Smart Classroom Center</p>
               </div>
               <PanelLeftClose className="h-5 w-5 flex-shrink-0 text-slate-400" />
             </>
@@ -82,11 +107,30 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
         </div>
       </button>
 
-      {expanded && user && (
-        <div className="border-b border-slate-200 px-5 py-5">
+      <div className="border-b border-teal-100 px-5 py-4 lg:hidden">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-teal-600 shadow-lg shadow-teal-700/20">
+            <Monitor className="h-5 w-5 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base font-bold text-slate-900">SmartClass</h1>
+            <p className="text-xs text-slate-500">Smart Classroom Center</p>
+          </div>
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="rounded-xl border border-teal-200 bg-white px-3 py-1.5 text-xs font-medium text-teal-700"
+          >
+            Đóng
+          </button>
+        </div>
+      </div>
+
+      {(expanded || mobileOpen) && user && (
+        <div className="border-b border-teal-100 px-5 py-5">
           <div className="rounded-3xl bg-slate-50 p-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-sky-500 text-base font-semibold text-white">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-teal-600 to-cyan-500 text-base font-semibold text-white">
                 {(user.fullName || user.username).charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
@@ -98,11 +142,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
                   className={clsx(
                     "mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium",
                     user.role === "admin"
-                      ? "bg-indigo-100 text-indigo-700"
+                      ? "bg-teal-100 text-teal-700"
                       : "bg-sky-100 text-sky-700",
                   )}
                 >
-                  {user.role === "admin" ? "Quan tri vien" : "Nguoi dung"}
+                  {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
                 </span>
               </div>
             </div>
@@ -110,21 +154,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
         </div>
       )}
 
-      <nav className={clsx("flex-1 px-4 py-5", expanded ? "space-y-1" : "space-y-3")}>
+      <nav className={clsx("flex-1 px-4 py-5", expanded || mobileOpen ? "space-y-1" : "space-y-3")}>
         {links.map((link) => {
           const Icon = link.icon;
           return (
             <NavLink
               key={link.path}
               to={link.path}
-              title={expanded ? undefined : link.label}
+              onClick={() => onCloseMobile?.()}
+              title={expanded || mobileOpen ? undefined : link.label}
               className={({ isActive }) =>
                 clsx(
                   "rounded-2xl text-sm font-medium transition",
                   isActive
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                  expanded
+                    ? "bg-teal-600 text-white shadow-lg shadow-teal-700/20"
+                    : "text-slate-600 hover:bg-teal-50 hover:text-slate-900",
+                  expanded || mobileOpen
                     ? "flex items-center gap-3 px-4 py-3"
                     : "flex h-12 items-center justify-center px-0 py-0",
                 )
@@ -137,19 +182,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isAdmin = true }) => {
         })}
       </nav>
 
-      <div className="border-t border-slate-200 p-4">
+      <div className="border-t border-teal-100 p-4">
         <button
           onClick={handleLogout}
-          title={expanded ? undefined : "Dang xuat"}
+          title={expanded || mobileOpen ? undefined : "Đăng xuất"}
           className={clsx(
             "w-full rounded-2xl text-sm font-medium text-slate-600 transition hover:bg-rose-50 hover:text-rose-600",
-            expanded
+            expanded || mobileOpen
               ? "flex items-center gap-3 px-4 py-3"
               : "flex h-12 items-center justify-center px-0 py-0",
           )}
         >
           <LogOut className="h-5 w-5" />
-          {expanded && "Dang xuat"}
+          {(expanded || mobileOpen) && "Đăng xuất"}
         </button>
       </div>
     </aside>

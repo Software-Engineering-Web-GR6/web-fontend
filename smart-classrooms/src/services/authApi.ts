@@ -1,11 +1,14 @@
 import api from "./api";
 import type {
   ChangePasswordPayload,
+  ForgotPasswordRequest,
   LoginCredentials,
   LoginResponse,
+  ResetPasswordRequest,
   User,
   UserScheduleEntry,
   UserRoomAccess,
+  VerifyResetCodeRequest,
 } from "../types";
 import { clearStoredAuth, getStoredToken } from "../utils/authStorage";
 
@@ -217,6 +220,32 @@ export const authApi = {
 
   changeMyPassword: async (payload: ChangePasswordPayload): Promise<void> => {
     await api.put("/api/v1/auth/me/password", payload);
+  },
+
+  forgotPassword: async (payload: ForgotPasswordRequest): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(
+      "/api/v1/auth/forgot-password",
+      payload,
+    );
+    return response.data;
+  },
+
+  verifyResetCode: async (
+    payload: VerifyResetCodeRequest,
+  ): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(
+      "/api/v1/auth/verify-reset-code",
+      payload,
+    );
+    return response.data;
+  },
+
+  resetPassword: async (payload: ResetPasswordRequest): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(
+      "/api/v1/auth/reset-password",
+      payload,
+    );
+    return response.data;
   },
 
 };
