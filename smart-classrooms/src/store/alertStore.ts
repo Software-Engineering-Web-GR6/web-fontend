@@ -6,11 +6,40 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   unreadCount: 0,
 
   setAlerts: (alerts: Alert[]) => {
-    const unreadCount = alerts.filter((alert) => !alert.read).length;
-    set({ alerts, unreadCount });
+    // Filter: Only show OPEN alerts or recently resolved ones (within 1 hour)
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    
+    const filteredAlerts = alerts.filter(alert => {
+      if (alert.status === "OPEN") return true;
+      
+      // Keep recently resolved alerts for visibility
+      const alertTime = new Date(alert.timestamp).getTime();
+      return alertTime > oneHourAgo;
+    });
+    
+    // Remove duplicates by ID (use Map to keep only latest)
+    const alertMap = new Map<string, Alert>();
+    filteredAlerts.forEach(alert => {
+      alertMap.set(alert.id, alert);
+    });
+    
+    const uniqueAlerts = Array.from(alertMap.values())
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 100);
+    
+    const unreadCount = uniqueAlerts.filter((alert) => !alert.read).length;
+    set({ alerts: uniqueAlerts, unreadCount });
   },
 
   addAlert: (alert: Alert) => {
+    // Check if alert with same ID already exists
+    const existingAlert = get().alerts.find((item) => item.id === alert.id);
+    if (existingAlert) {
+      return; // Don't add duplicate
+    }
+
+    // Check for duplicate by message/level in last 30 seconds
     const latestMatchingAlert = get().alerts.find(
       (item) => item.message === alert.message && item.level === alert.level,
     );
@@ -55,7 +84,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   resolveAlert: (id: string) => {
     set((state) => {
       const alerts = state.alerts.map((alert) =>
-        alert.id === id ? { ...alert, status: "RESOLVED" } : alert,
+        alert.id === id ? { ...alert, status: "RESOLVED", read: true } : alert,
       );
       return {
         alerts,
