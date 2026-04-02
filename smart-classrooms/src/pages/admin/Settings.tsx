@@ -3,7 +3,7 @@ import { Building2, Gauge, Layers3, SlidersHorizontal, Zap } from "lucide-react"
 import Layout from "../../components/layout/Layout";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
-import { roomApi, ruleApi } from "../../services";
+import { deviceApi, roomApi, ruleApi } from "../../services";
 import { buildRoomHierarchy, getRoomLabel } from "../../utils";
 import type { Room } from "../../types";
 import type { Rule, RulePayload } from "../../services/ruleApi";
@@ -145,10 +145,17 @@ const Settings: React.FC = () => {
     try {
       await roomApi.updateAutomationMode(selectedRoomId, roomAutomationEnabled);
 
-      const currentRules = await ruleApi.listByRoom(selectedRoomId);
+      const [currentRules, devices] = await Promise.all([
+        ruleApi.listByRoom(selectedRoomId),
+        deviceApi.getAll(selectedRoomId),
+      ]);
       const temperatureRule = currentRules.find((rule) => rule.metric === "temperature");
       const humidityRule = currentRules.find((rule) => rule.metric === "humidity");
       const co2Rule = currentRules.find((rule) => rule.metric === "co2");
+      const firstFan = devices.find((device) => device.type === "fan");
+      const fanTargetDeviceId = firstFan ? Number(firstFan.id) : null;
+      const temperatureTargetDeviceId = temperatureRule?.target_device_id ?? fanTargetDeviceId;
+      const co2TargetDeviceId = co2Rule?.target_device_id ?? fanTargetDeviceId;
 
       await Promise.all([
         saveRule(temperatureRule, {
@@ -157,10 +164,10 @@ const Settings: React.FC = () => {
           metric: "temperature",
           operator: ">",
           threshold_value: thresholds.temperature,
-          target_device_id: null,
+          target_device_id: temperatureTargetDeviceId,
           action: "ON",
           alert_level: thresholds.level,
-          alert_message: `Nhiệt độ vượt ${thresholds.temperature}°C`,
+          alert_message: `Nhiệt độ vượt ${thresholds.temperature}°C, hệ thống tự động bật quạt`,
           is_active: roomAutomationEnabled,
         }),
         saveRule(humidityRule, {
@@ -177,14 +184,14 @@ const Settings: React.FC = () => {
         }),
         saveRule(co2Rule, {
           room_id: selectedRoomId,
-          name: "Tự động bật đèn khi CO2 cao",
+          name: "Tự động bật quạt khi CO2 cao",
           metric: "co2",
           operator: ">",
           threshold_value: thresholds.co2,
-          target_device_id: null,
+          target_device_id: co2TargetDeviceId,
           action: "ON",
           alert_level: "HIGH",
-          alert_message: `Nồng độ CO2 vượt ${thresholds.co2} ppm`,
+          alert_message: `Nồng độ CO2 vượt ${thresholds.co2} ppm, hệ thống tự động bật quạt`,
           is_active: roomAutomationEnabled,
         }),
       ]);
@@ -237,7 +244,7 @@ const Settings: React.FC = () => {
       min: 600,
       max: 2000,
       unit: "ppm",
-      description: "Khi CO2 vượt ngưỡng, hệ thống có thể kích hoạt cảnh báo.",
+      description: "Khi CO2 vượt ngưỡng, hệ thống có thể tự động bật quạt.",
     },
   ];
 
