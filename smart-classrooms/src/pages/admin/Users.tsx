@@ -6,6 +6,8 @@ import {
   CalendarDays,
   Check,
   Clock3,
+  Download,
+  FileSpreadsheet,
   Layers3,
   Mail,
   MapPin,
@@ -13,12 +15,18 @@ import {
   Trash2,
   UserPlus,
   UserRound,
+  X,
 } from "lucide-react";
 import Layout from "../../components/layout/Layout";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import Card, { CardHeader, CardTitle } from "../../components/ui/Card";
 import { authApi, roomApi } from "../../services";
+import type {
+  BatchImportResponse,
+  CreateUserPayload,
+  ImportScheduleRow,
+} from "../../services/authApi";
 import {
   buildRoomHierarchy,
   DAYS,
@@ -30,6 +38,7 @@ import {
   normalizeRoom,
   SHIFTS,
 } from "../../utils";
+import { parseCsvText } from "../../utils/csv";
 import type { Room, UserScheduleEntry } from "../../types";
 
 type AdminUserRow = {
@@ -40,7 +49,90 @@ type AdminUserRow = {
   created_at: string;
 };
 
-const accessKey = (roomId: number, day: number, shift: number) => `${roomId}-${day}-${shift}`;
+type ImportPreviewKind = "users" | "schedule";
+type CsvPreviewRow = Record<string, string>;
+
+const accessKey = (roomId: number, day: number, shift: number) =>
+  `${roomId}-${day}-${shift}`;
+
+const CsvImportCard: React.FC<{
+  title: string;
+  formatHint: string;
+  icon: React.ReactNode;
+  fileId: string;
+  fileName: string;
+  disabled?: boolean;
+  templateFileName: string;
+  templateContent: string;
+  onTemplateDownload: (filename: string, content: string) => void;
+  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+}> = ({
+  title,
+  formatHint,
+  icon,
+  fileId,
+  fileName,
+  disabled = false,
+  templateFileName,
+  templateContent,
+  onTemplateDownload,
+  onFileChange,
+}) => (
+  <Card className="overflow-hidden rounded-[2rem] border border-cyan-100/80 bg-white/95 p-0 shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
+    <div className="flex items-start justify-between border-b border-teal-100 px-5 py-5">
+      <div>
+        <h3 className="text-[1.75rem] font-semibold leading-none tracking-tight text-slate-900">
+          {title}
+        </h3>
+        <p className="mt-4 text-sm text-slate-500">
+          Định dạng gợi ý: <code>{formatHint}</code>
+        </p>
+      </div>
+      <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+        {icon}
+      </div>
+    </div>
+
+    <div className="space-y-5 px-5 py-5">
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        className="rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-slate-700 hover:bg-slate-200"
+        onClick={() => onTemplateDownload(templateFileName, templateContent)}
+      >
+        <Download className="mr-1.5 h-4 w-4" />
+        Tải CSV mẫu
+      </Button>
+
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-slate-700">Chọn file CSV</p>
+        <label
+          htmlFor={fileId}
+          className="flex cursor-pointer flex-col items-center justify-center rounded-[1.75rem] border border-slate-200 bg-slate-50 px-5 py-7 text-center transition hover:border-sky-200 hover:bg-sky-50/40"
+        >
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm">
+            <FileSpreadsheet className="h-5 w-5" />
+          </div>
+          <p className="mt-4 text-sm font-semibold text-slate-700">
+            {fileName || "Chọn file CSV"}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Hỗ trợ tệp .csv, tối đa 10MB
+          </p>
+        </label>
+        <input
+          id={fileId}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={onFileChange}
+          className="sr-only"
+          disabled={disabled}
+        />
+      </div>
+    </div>
+  </Card>
+);
 
 const Users: React.FC = () => {
   const [users, setUsers] = useState<AdminUserRow[]>([]);
@@ -57,14 +149,37 @@ const Users: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isScheduleViewOpen, setIsScheduleViewOpen] = useState(false);
+  const [userImportFileName, setUserImportFileName] = useState("");
+  const [scheduleImportFileName, setScheduleImportFileName] = useState("");
+  const [importingUsers, setImportingUsers] = useState(false);
+  const [importingSchedule, setImportingSchedule] = useState(false);
+  const [importReport, setImportReport] = useState<BatchImportResponse | null>(
+    null,
+  );
+  const [previewKind, setPreviewKind] = useState<ImportPreviewKind | null>(
+    null,
+  );
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
+  const [previewRows, setPreviewRows] = useState<CsvPreviewRow[]>([]);
+  const [pendingUserImportItems, setPendingUserImportItems] = useState<
+    CreateUserPayload[]
+  >([]);
+  const [pendingScheduleImportItems, setPendingScheduleImportItems] = useState<
+    ImportScheduleRow[]
+  >([]);
 
-  const normalUsers = useMemo(() => users.filter((user) => user.role === "user"), [users]);
+  const normalUsers = useMemo(
+    () => users.filter((user) => user.role === "user"),
+    [users],
+  );
   const filteredUsers = useMemo(() => {
     const keyword = userSearchQuery.trim().toLowerCase();
     if (!keyword) {
@@ -81,23 +196,60 @@ const Users: React.FC = () => {
   const getApiErrorMessage = (err: any, fallback: string) => {
     const detail = err?.response?.data?.detail;
     if (Array.isArray(detail)) {
-      return detail.map((item: any) => item?.msg).filter(Boolean).join(", ");
+      return detail
+        .map((item: any) => item?.msg)
+        .filter(Boolean)
+        .join(", ");
     }
     return typeof detail === "string" ? detail : fallback;
+  };
+
+  const readCsvFile = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Không thể đọc file CSV."));
+      reader.readAsText(file);
+    });
+
+  const clearImportPreview = () => {
+    setPreviewKind(null);
+    setPreviewFileName("");
+    setPreviewHeaders([]);
+    setPreviewRows([]);
+    setPendingUserImportItems([]);
+    setPendingScheduleImportItems([]);
+  };
+
+  const downloadCsvTemplate = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [userData, roomData] = await Promise.all([authApi.listUsers(), roomApi.getAll()]);
+      const [userData, roomData] = await Promise.all([
+        authApi.listUsers(),
+        roomApi.getAll(),
+      ]);
       setUsers(userData);
       setRooms(roomData);
       if (!selectedUserId && userData.some((user) => user.role === "user")) {
-        setSelectedUserId(userData.find((user) => user.role === "user")?.id ?? null);
+        setSelectedUserId(
+          userData.find((user) => user.role === "user")?.id ?? null,
+        );
       }
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Khong the tai du lieu nguoi dung."));
+      setError(getApiErrorMessage(err, "Không thể tải dữ liệu người dùng."));
     } finally {
       setLoading(false);
     }
@@ -108,7 +260,9 @@ const Users: React.FC = () => {
       const data = await authApi.getUserSchedule(userId);
       setAccesses(data);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Khong the tai thoi khoa bieu cua nguoi dung."));
+      setError(
+        getApiErrorMessage(err, "Không thể tải thời khóa biểu của người dùng."),
+      );
     }
   };
 
@@ -117,7 +271,9 @@ const Users: React.FC = () => {
       const data = await authApi.getRoomSchedule(roomId);
       setRoomOccupancy(data);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Khong the tai lich hien co cua phong."));
+      setError(
+        getApiErrorMessage(err, "Không thể tải lịch hiện có của phòng."),
+      );
     }
   };
 
@@ -134,10 +290,14 @@ const Users: React.FC = () => {
   }, [selectedUserId]);
 
   const hierarchy = useMemo(() => buildRoomHierarchy(rooms), [rooms]);
-  const building = hierarchy.find((item) => item.key === selectedBuilding) ?? null;
-  const floor = building?.floors.find((item) => item.floor === selectedFloor) ?? null;
-  const selectedRoom = floor?.rooms.find((room) => room.id === selectedRoomId) ?? null;
-  const selectedUser = normalUsers.find((user) => user.id === selectedUserId) ?? null;
+  const building =
+    hierarchy.find((item) => item.key === selectedBuilding) ?? null;
+  const floor =
+    building?.floors.find((item) => item.floor === selectedFloor) ?? null;
+  const selectedRoom =
+    floor?.rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const selectedUser =
+    normalUsers.find((user) => user.id === selectedUserId) ?? null;
 
   useEffect(() => {
     if (!hierarchy.length) {
@@ -147,11 +307,16 @@ const Users: React.FC = () => {
       return;
     }
 
-    const nextBuilding = hierarchy.find((item) => item.key === selectedBuilding) ?? hierarchy[0];
+    const nextBuilding =
+      hierarchy.find((item) => item.key === selectedBuilding) ?? hierarchy[0];
     const nextFloor =
-      nextBuilding.floors.find((item) => item.floor === selectedFloor) ?? nextBuilding.floors[0] ?? null;
+      nextBuilding.floors.find((item) => item.floor === selectedFloor) ??
+      nextBuilding.floors[0] ??
+      null;
     const nextRoom =
-      nextFloor?.rooms.find((room) => room.id === selectedRoomId) ?? nextFloor?.rooms[0] ?? null;
+      nextFloor?.rooms.find((room) => room.id === selectedRoomId) ??
+      nextFloor?.rooms[0] ??
+      null;
 
     if (selectedBuilding !== nextBuilding.key) {
       setSelectedBuilding(nextBuilding.key);
@@ -173,7 +338,12 @@ const Users: React.FC = () => {
   }, [selectedRoomId]);
 
   const myAccessSet = useMemo(
-    () => new Set(accesses.map((access) => accessKey(access.room_id, access.day_of_week, access.shift_number))),
+    () =>
+      new Set(
+        accesses.map((access) =>
+          accessKey(access.room_id, access.day_of_week, access.shift_number),
+        ),
+      ),
     [accesses],
   );
 
@@ -182,12 +352,17 @@ const Users: React.FC = () => {
       new Set(
         roomOccupancy
           .filter((access) => access.user_id !== selectedUserId)
-          .map((access) => accessKey(access.room_id, access.day_of_week, access.shift_number)),
+          .map((access) =>
+            accessKey(access.room_id, access.day_of_week, access.shift_number),
+          ),
       ),
     [roomOccupancy, selectedUserId],
   );
 
-  const roomMap = useMemo(() => new Map(rooms.map((room) => [room.id, room])), [rooms]);
+  const roomMap = useMemo(
+    () => new Map(rooms.map((room) => [room.id, room])),
+    [rooms],
+  );
 
   const scheduleEntriesBySlot = useMemo(
     () =>
@@ -211,18 +386,24 @@ const Users: React.FC = () => {
     if (!selectedRoomId || selectedDay === null || selectedShift === null) {
       return false;
     }
-    return occupiedSet.has(accessKey(selectedRoomId, selectedDay, selectedShift));
+    return occupiedSet.has(
+      accessKey(selectedRoomId, selectedDay, selectedShift),
+    );
   }, [occupiedSet, selectedDay, selectedRoomId, selectedShift]);
 
   const selectedSlotMine = useMemo(() => {
     if (!selectedRoomId || selectedDay === null || selectedShift === null) {
       return false;
     }
-    return myAccessSet.has(accessKey(selectedRoomId, selectedDay, selectedShift));
+    return myAccessSet.has(
+      accessKey(selectedRoomId, selectedDay, selectedShift),
+    );
   }, [myAccessSet, selectedDay, selectedRoomId, selectedShift]);
 
   const selectedSlotAlreadyMatchesRoom =
-    selectedSlotEntry !== null && selectedRoomId !== null && selectedSlotEntry.access.room_id === selectedRoomId;
+    selectedSlotEntry !== null &&
+    selectedRoomId !== null &&
+    selectedSlotEntry.access.room_id === selectedRoomId;
 
   const selectBuildingAndRoom = (
     buildingKey: string,
@@ -235,9 +416,13 @@ const Users: React.FC = () => {
     }
 
     const nextFloor =
-      nextBuilding.floors.find((item) => item.floor === preferredFloor) ?? nextBuilding.floors[0] ?? null;
+      nextBuilding.floors.find((item) => item.floor === preferredFloor) ??
+      nextBuilding.floors[0] ??
+      null;
     const nextRoom =
-      nextFloor?.rooms.find((room) => room.id === preferredRoomId) ?? nextFloor?.rooms[0] ?? null;
+      nextFloor?.rooms.find((room) => room.id === preferredRoomId) ??
+      nextFloor?.rooms[0] ??
+      null;
 
     setSelectedBuilding(nextBuilding.key);
     setSelectedFloor(nextFloor?.floor ?? null);
@@ -250,7 +435,8 @@ const Users: React.FC = () => {
       return;
     }
 
-    const nextFloor = building.floors.find((item) => item.floor === floorNumber) ?? null;
+    const nextFloor =
+      building.floors.find((item) => item.floor === floorNumber) ?? null;
     const nextRoom = nextFloor?.rooms[0] ?? null;
 
     setSelectedFloor(nextFloor?.floor ?? null);
@@ -272,23 +458,25 @@ const Users: React.FC = () => {
     setSelectedUserId(userId);
     setIsScheduleViewOpen(true);
     setError(null);
+    setSuccessMessage(null);
   };
 
   const handleCreateUser = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSuccessMessage(null);
 
     if (fullName.trim().length < 3) {
-      setError("Ho ten nguoi dung phai co it nhat 3 ky tu.");
+      setError("Họ tên người dùng phải có ít nhất 3 ký tự.");
       return;
     }
 
     if (password.length < 8) {
-      setError("Mat khau tam thoi phai co it nhat 8 ky tu.");
+      setError("Mật khẩu tạm thời phải có ít nhất 8 ký tự.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Xac nhan mat khau khong khop.");
+      setError("Xác nhận mật khẩu không khớp.");
       return;
     }
 
@@ -305,15 +493,178 @@ const Users: React.FC = () => {
       setPassword("");
       setConfirmPassword("");
       await fetchUsers();
+      setSuccessMessage("Tạo tài khoản thành công.");
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Tao tai khoan that bai."));
+      setError(getApiErrorMessage(err, "Tạo tài khoản thất bại."));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleImportUsersCsv = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setImportingUsers(true);
+    setError(null);
+    setSuccessMessage(null);
+    setImportReport(null);
+    setUserImportFileName(file.name);
+
+    try {
+      const text = await readCsvFile(file);
+      const rows = parseCsvText(text);
+      const items = rows.map((row) => ({
+        full_name: row.full_name || row.name || "",
+        email: row.email || "",
+        password: row.password || "",
+      }));
+
+      if (items.length === 0) {
+        throw new Error("File CSV tài khoản không có dữ liệu hợp lệ.");
+      }
+      setPreviewKind("users");
+      setPreviewFileName(file.name);
+      setPreviewHeaders(["full_name", "email", "password"]);
+      setPreviewRows(
+        items.map((item) => ({
+          full_name: item.full_name,
+          email: item.email,
+          password: item.password,
+        })),
+      );
+      setPendingUserImportItems(items);
+      setPendingScheduleImportItems([]);
+      setSuccessMessage(
+        `Đã đọc file ${file.name}. Kiểm tra preview rồi bấm import để tạo tài khoản.`,
+      );
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          getApiErrorMessage(err, "Không thể import tài khoản từ CSV."),
+      );
+    } finally {
+      setImportingUsers(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleImportScheduleCsv = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    setImportingSchedule(true);
+    setError(null);
+    setSuccessMessage(null);
+    setImportReport(null);
+    setScheduleImportFileName(file.name);
+
+    try {
+      const text = await readCsvFile(file);
+      const rows = parseCsvText(text);
+      const items: ImportScheduleRow[] = rows.map((row) => ({
+        email: row.email || "",
+        room_name: row.room_name || row.room || "",
+        day_of_week: row.day_of_week || "",
+        shift_number: row.shift_number || "",
+      }));
+
+      if (items.length === 0) {
+        throw new Error("File CSV lịch dạy không có dữ liệu hợp lệ.");
+      }
+      setPreviewKind("schedule");
+      setPreviewFileName(file.name);
+      setPreviewHeaders(["email", "room_name", "day_of_week", "shift_number"]);
+      setPreviewRows(
+        items.map((item) => ({
+          email: String(item.email ?? ""),
+          room_name: String(item.room_name ?? ""),
+          day_of_week: String(item.day_of_week ?? ""),
+          shift_number: String(item.shift_number ?? ""),
+        })),
+      );
+      setPendingScheduleImportItems(items);
+      setPendingUserImportItems([]);
+      setSuccessMessage(
+        `Đã đọc file ${file.name}. Kiểm tra preview rồi bấm import để tạo lịch dạy.`,
+      );
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          getApiErrorMessage(err, "Không thể import lịch dạy từ CSV."),
+      );
+    } finally {
+      setImportingSchedule(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (previewKind === "users") {
+      if (pendingUserImportItems.length === 0) {
+        setError("Không có dữ liệu tài khoản để import.");
+        return;
+      }
+
+      setImportingUsers(true);
+      setError(null);
+      setImportReport(null);
+      try {
+        const result = await authApi.importUsers({
+          items: pendingUserImportItems,
+        });
+        setImportReport(result);
+        setSuccessMessage(
+          `Import tài khoản hoàn tất: ${result.created_count} thành công, ${result.failed_count} thất bại.`,
+        );
+        clearImportPreview();
+        await fetchUsers();
+      } catch (err: any) {
+        setError(getApiErrorMessage(err, "Không thể import tài khoản từ CSV."));
+      } finally {
+        setImportingUsers(false);
+      }
+      return;
+    }
+
+    if (previewKind === "schedule") {
+      if (pendingScheduleImportItems.length === 0) {
+        setError("Không có dữ liệu lịch dạy để import.");
+        return;
+      }
+
+      setImportingSchedule(true);
+      setError(null);
+      setImportReport(null);
+      try {
+        const result = await authApi.importSchedule({
+          items: pendingScheduleImportItems,
+        });
+        setImportReport(result);
+        setSuccessMessage(
+          `Import lịch dạy hoàn tất: ${result.created_count} thành công, ${result.failed_count} thất bại.`,
+        );
+        clearImportPreview();
+        await fetchUsers();
+      } catch (err: any) {
+        setError(getApiErrorMessage(err, "Không thể import lịch dạy từ CSV."));
+      } finally {
+        setImportingSchedule(false);
+      }
+    }
+  };
+
   const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm("Ban co chac chan muon xoa tai khoan nay?")) {
+    setSuccessMessage(null);
+    if (!window.confirm("Bạn có chắc chắn muốn xóa tài khoản này?")) {
       return;
     }
 
@@ -328,20 +679,21 @@ const Users: React.FC = () => {
         setIsScheduleViewOpen(false);
       }
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Xoa tai khoan that bai."));
+      setError(getApiErrorMessage(err, "Xóa tài khoản thất bại."));
     } finally {
       setDeletingId(null);
     }
   };
 
   const handleAssignSelectedSlot = async () => {
+    setSuccessMessage(null);
     if (selectedDay === null || selectedShift === null) {
-      setError("Hay chon mot o tren lich truoc.");
+      setError("Hãy chọn một ô trên lịch trước.");
       return;
     }
 
     if (!selectedRoomId) {
-      setError("Hay chon phong hoc de xep lich.");
+      setError("Hãy chọn phòng học để xếp lịch.");
       return;
     }
 
@@ -349,7 +701,8 @@ const Users: React.FC = () => {
       return;
     }
 
-    const currentSlot = scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
+    const currentSlot =
+      scheduleEntriesBySlot.get(`${selectedDay}-${selectedShift}`) ?? null;
 
     setSubmitting(true);
     setError(null);
@@ -363,7 +716,10 @@ const Users: React.FC = () => {
         );
 
         if (currentSlot.access.room_id === selectedRoomId) {
-          await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
+          await Promise.all([
+            fetchAccesses(selectedUserId),
+            fetchRoomOccupancy(selectedRoomId),
+          ]);
           return;
         }
       }
@@ -374,9 +730,12 @@ const Users: React.FC = () => {
         days_of_week: [selectedDay],
       });
 
-      await Promise.all([fetchAccesses(selectedUserId), fetchRoomOccupancy(selectedRoomId)]);
+      await Promise.all([
+        fetchAccesses(selectedUserId),
+        fetchRoomOccupancy(selectedRoomId),
+      ]);
     } catch (err: any) {
-      setError(getApiErrorMessage(err, "Khong the cap nhat thoi khoa bieu."));
+      setError(getApiErrorMessage(err, "Không thể cập nhật thời khóa biểu."));
     } finally {
       setSubmitting(false);
     }
@@ -384,8 +743,8 @@ const Users: React.FC = () => {
 
   return (
     <Layout
-      title="Nguoi dung"
-      subtitle="Moi nguoi dung co thoi khoa bieu rieng, va quyen su dung phong se tu mo dung theo ca dang dien ra"
+      title="Người dùng"
+      subtitle="Mỗi người dùng có thời khóa biểu riêng, và quyền sử dụng phòng sẽ tự mở đúng theo ca đang diễn ra"
       isAdmin={true}
     >
       {!isScheduleViewOpen && (
@@ -394,8 +753,10 @@ const Users: React.FC = () => {
             <Card padding="sm" className="rounded-3xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Tong tai khoan</p>
-                  <p className="text-3xl font-bold text-slate-900">{users.length}</p>
+                  <p className="text-sm text-slate-500">Tổng tài khoản</p>
+                  <p className="text-3xl font-bold text-slate-900">
+                    {users.length}
+                  </p>
                 </div>
                 <UserRound className="h-6 w-6 text-slate-400" />
               </div>
@@ -403,7 +764,7 @@ const Users: React.FC = () => {
             <Card padding="sm" className="rounded-3xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Quan tri vien</p>
+                  <p className="text-sm text-slate-500">Quản trị viên</p>
                   <p className="text-3xl font-bold text-indigo-600">
                     {users.filter((user) => user.role === "admin").length}
                   </p>
@@ -414,8 +775,10 @@ const Users: React.FC = () => {
             <Card padding="sm" className="rounded-3xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-500">Nguoi dung thuong</p>
-                  <p className="text-3xl font-bold text-emerald-600">{normalUsers.length}</p>
+                  <p className="text-sm text-slate-500">Người dùng thường</p>
+                  <p className="text-3xl font-bold text-emerald-600">
+                    {normalUsers.length}
+                  </p>
                 </div>
                 <Badge variant="success">User</Badge>
               </div>
@@ -428,19 +791,25 @@ const Users: React.FC = () => {
                 <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-white shadow-lg shadow-indigo-600/20">
                   <UserPlus className="h-5 w-5" />
                 </div>
-                <p className="mt-5 text-xl font-semibold text-slate-900">Tao tai khoan nguoi dung</p>
+                <p className="mt-5 text-xl font-semibold text-slate-900">
+                  Tạo tài khoản người dùng
+                </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Su dung mau tao tai khoan chuan cho lop hoc thong minh: day du thong tin, mat khau tam thoi ro rang va de ban giao.
+                  Sử dụng mẫu tạo tài khoản chuẩn cho lớp học thông minh: đầy đủ
+                  thông tin, mật khẩu tạm thời rõ ràng và dễ bàn giao.
                 </p>
                 <div className="mt-5 rounded-2xl border border-indigo-100 bg-white/90 px-4 py-3 text-xs text-slate-600">
-                  Goi y: Sau khi tao, hay yeu cau nguoi dung dang nhap va doi mat khau ngay trong lan dau su dung.
+                  Gợi ý: Sau khi tạo, hãy yêu cầu người dùng đăng nhập và đổi
+                  mật khẩu ngay trong lần đầu sử dụng.
                 </div>
               </div>
 
               <form onSubmit={handleCreateUser} className="space-y-4 p-6">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700">Ho va ten</span>
+                    <span className="text-sm font-medium text-slate-700">
+                      Họ và tên
+                    </span>
                     <input
                       value={fullName}
                       onChange={(event) => setFullName(event.target.value)}
@@ -451,7 +820,9 @@ const Users: React.FC = () => {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700">Email</span>
+                    <span className="text-sm font-medium text-slate-700">
+                      Email
+                    </span>
                     <input
                       type="email"
                       value={email}
@@ -463,12 +834,14 @@ const Users: React.FC = () => {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700">Mat khau tam thoi</span>
+                    <span className="text-sm font-medium text-slate-700">
+                      Mật khẩu tạm thời
+                    </span>
                     <input
                       type="password"
                       value={password}
                       onChange={(event) => setPassword(event.target.value)}
-                      placeholder="It nhat 8 ky tu"
+                      placeholder="Ít nhất 8 ký tự"
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                       minLength={8}
                       required
@@ -476,12 +849,16 @@ const Users: React.FC = () => {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700">Xac nhan mat khau</span>
+                    <span className="text-sm font-medium text-slate-700">
+                      Xác nhận mật khẩu
+                    </span>
                     <input
                       type="password"
                       value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
-                      placeholder="Nhap lai mat khau"
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
+                      placeholder="Nhập lại mật khẩu"
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                       minLength={8}
                       required
@@ -491,16 +868,135 @@ const Users: React.FC = () => {
 
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <p className="text-xs text-slate-600">
-                    Tai khoan moi duoc tao voi quyen user. Lich hoc va quyen phong duoc phan o ben duoi.
+                    Tài khoản mới được tạo với quyền user. Lịch học và quyền
+                    phòng được phân ở bên dưới.
                   </p>
-                  <Button type="submit" loading={submitting} className="rounded-2xl px-5">
+                  <Button
+                    type="submit"
+                    loading={submitting}
+                    className="rounded-2xl px-5"
+                  >
                     <UserPlus className="mr-1.5 h-4 w-4" />
-                    Tao tai khoan
+                    Tạo tài khoản
                   </Button>
                 </div>
               </form>
             </div>
           </Card>
+
+          <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <CsvImportCard
+              title="Tải lên danh sách tài khoản "
+              formatHint="full_name,email,password"
+              icon={<UserPlus className="h-5 w-5" />}
+              fileId="user-import-csv"
+              fileName={userImportFileName}
+              disabled={importingUsers}
+              templateFileName="mau-tai-khoan.csv"
+              templateContent={
+                "full_name,email,password\nNguyen Van A,a@example.com,12345678\nTran Thi B,b@example.com,12345678\n"
+              }
+              onTemplateDownload={downloadCsvTemplate}
+              onFileChange={handleImportUsersCsv}
+            />
+
+            <CsvImportCard
+              title="Cập Nhật lịch giảng dạy"
+              formatHint="email,room_name,day_of_week,shift_number"
+              icon={<CalendarDays className="h-5 w-5" />}
+              fileId="schedule-import-csv"
+              fileName={scheduleImportFileName}
+              disabled={importingSchedule}
+              templateFileName="mau-lich-day.csv"
+              templateContent={
+                "email,room_name,day_of_week,shift_number\na@example.com,Room A101,0,1\na@example.com,Room A101,3,6\n"
+              }
+              onTemplateDownload={downloadCsvTemplate}
+              onFileChange={handleImportScheduleCsv}
+            />
+          </div>
+
+          {previewKind && (
+            <Card className="mb-6 rounded-3xl">
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <CardTitle>
+                    Preview import{" "}
+                    {previewKind === "users" ? "tài khoản" : "lịch dạy"}
+                  </CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={clearImportPreview}
+                    >
+                      <X className="mr-1.5 h-4 w-4" />
+                      Hủy preview
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleConfirmImport}
+                      loading={
+                        previewKind === "users"
+                          ? importingUsers
+                          : importingSchedule
+                      }
+                    >
+                      <Check className="mr-1.5 h-4 w-4" />
+                      Xác nhận import
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <div className="space-y-4">
+                <p className="text-sm text-slate-600">
+                  File:{" "}
+                  <span className="font-medium text-slate-900">
+                    {previewFileName}
+                  </span>{" "}
+                  • Tổng dòng dữ liệu: {previewRows.length}
+                </p>
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {previewHeaders.map((header) => (
+                          <th
+                            key={header}
+                            className="px-4 py-3 text-left font-semibold uppercase tracking-wide text-slate-600"
+                          >
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {previewRows.slice(0, 8).map((row, index) => (
+                        <tr key={`${previewFileName}-${index}`}>
+                          {previewHeaders.map((header) => (
+                            <td
+                              key={`${header}-${index}`}
+                              className="px-4 py-3 text-slate-700"
+                            >
+                              {row[header] || "-"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {previewRows.length > 8 && (
+                  <p className="text-xs text-slate-500">
+                    Đang hiển thị 8 dòng đầu tiên. Khi xác nhận, hệ thống sẽ
+                    import toàn bộ {previewRows.length} dòng.
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
         </>
       )}
 
@@ -511,22 +1007,72 @@ const Users: React.FC = () => {
         </div>
       )}
 
+      {successMessage && (
+        <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+          <span className="text-sm">{successMessage}</span>
+        </div>
+      )}
+
+      {importReport && (
+        <Card className="mb-6 rounded-3xl">
+          <CardHeader>
+            <CardTitle>Kết quả import</CardTitle>
+          </CardHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Thành công: {importReport.created_count} | Thất bại:{" "}
+              {importReport.failed_count}
+            </p>
+            <div className="grid gap-2">
+              {importReport.results.slice(0, 12).map((item) => (
+                <div
+                  key={`${item.row_number}-${item.email ?? item.room_name ?? "row"}`}
+                  className={`rounded-2xl border px-4 py-3 text-sm ${
+                    item.success
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border-rose-200 bg-rose-50 text-rose-700"
+                  }`}
+                >
+                  Dòng {item.row_number}: {item.email ?? "N/A"}
+                  {item.room_name ? ` • ${item.room_name}` : ""} •{" "}
+                  {item.message}
+                </div>
+              ))}
+            </div>
+            {importReport.results.length > 12 && (
+              <p className="text-xs text-slate-500">
+                Đang hiển thị 12 dòng đầu tiên trong tổng số{" "}
+                {importReport.results.length} kết quả.
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
+
       {isScheduleViewOpen ? (
         <Card className="rounded-3xl">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <CardTitle>
-                {selectedUser ? `Thoi khoa bieu cua ${selectedUser.full_name}` : "Thoi khoa bieu nguoi dung"}
+                {selectedUser
+                  ? `Thời khóa biểu của ${selectedUser.full_name}`
+                  : "Thời khóa biểu người dùng"}
               </CardTitle>
-              <Button variant="secondary" onClick={() => setIsScheduleViewOpen(false)}>
+              <Button
+                variant="secondary"
+                onClick={() => setIsScheduleViewOpen(false)}
+              >
                 <ArrowLeft className="mr-1.5 h-4 w-4" />
-                Quay lai quan ly nguoi dung
+                Quay lại quản lý người dùng
               </Button>
             </div>
           </CardHeader>
 
           {!selectedUser ? (
-            <p className="text-sm text-slate-500">Chon mot tai khoan o ben trai de bat dau sap lich hoc hoac lich day.</p>
+            <p className="text-sm text-slate-500">
+              Chọn một tài khoản ở bên trái để bắt đầu sắp lịch học hoặc lịch
+              dạy.
+            </p>
           ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -534,34 +1080,48 @@ const Users: React.FC = () => {
                   <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fafc_45%,#ffffff_100%)] p-5">
                     <div className="mb-4 flex items-start justify-between gap-4">
                       <div>
-                        <p className="text-lg font-semibold text-slate-900">Lich ca nhan theo tuan</p>
+                        <p className="text-lg font-semibold text-slate-900">
+                          Lịch cá nhân theo tuần
+                        </p>
                         <p className="mt-1 text-sm text-slate-500">
-                          Bam vao tung o de chon ca hoc, sau do gan phong o bang ben phai.
+                          Bấm vào từng ô để chọn ca học, sau đó gán phòng ở bảng
+                          bên phải.
                         </p>
                       </div>
                       <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
                         <div className="flex items-center gap-2 text-sm font-semibold text-indigo-700">
                           <CalendarDays className="h-4 w-4" />
-                          Tuan chuan
+                          Tuần chuẩn
                         </div>
-                        <p className="mt-1 text-xs text-slate-500">T2 den Chu nhat</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          T2 đến Chủ nhật
+                        </p>
                       </div>
                     </div>
 
                     <div>
                       <div className="grid w-full grid-cols-[88px_repeat(7,minmax(0,1fr))] overflow-hidden rounded-3xl border border-slate-200 bg-white">
                         <div className="border-b border-r border-slate-200 bg-slate-50 px-2 py-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">Khung gio</p>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">
+                            Khung giờ
+                          </p>
                           <p className="mt-1 text-xs text-slate-500">GMT+7</p>
                         </div>
                         {DAYS.map((day) => (
                           <div
                             key={day.value}
-                            className={`border-b border-slate-200 px-2 py-3 text-center ${selectedDay === day.value ? "bg-indigo-50" : "bg-slate-50"
-                              }`}
+                            className={`border-b border-slate-200 px-2 py-3 text-center ${
+                              selectedDay === day.value
+                                ? "bg-indigo-50"
+                                : "bg-slate-50"
+                            }`}
                           >
-                            <p className="text-sm font-semibold text-slate-900">{day.label}</p>
-                            <p className="mt-1 text-xs text-slate-500">{day.shortLabel}</p>
+                            <p className="text-sm font-semibold text-slate-900">
+                              {day.label}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              {day.shortLabel}
+                            </p>
                           </div>
                         ))}
 
@@ -571,15 +1131,23 @@ const Users: React.FC = () => {
                               <div className="flex items-start gap-3">
                                 <Clock3 className="mt-0.5 h-4 w-4 text-slate-400" />
                                 <div>
-                                  <p className="text-sm font-semibold text-slate-900">{getShiftLabel(shift.value)}</p>
-                                  <p className="mt-1 text-xs text-slate-500">{shift.time}</p>
+                                  <p className="text-sm font-semibold text-slate-900">
+                                    {getShiftLabel(shift.value)}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    {shift.time}
+                                  </p>
                                 </div>
                               </div>
                             </div>
 
                             {DAYS.map((day) => {
-                              const slot = scheduleEntriesBySlot.get(`${day.value}-${shift.value}`);
-                              const isSelected = selectedDay === day.value && selectedShift === shift.value;
+                              const slot = scheduleEntriesBySlot.get(
+                                `${day.value}-${shift.value}`,
+                              );
+                              const isSelected =
+                                selectedDay === day.value &&
+                                selectedShift === shift.value;
                               const room = slot?.room ?? null;
 
                               return (
@@ -594,34 +1162,46 @@ const Users: React.FC = () => {
                                       syncSelectionToRoom(room.id);
                                     }
                                   }}
-                                  className={`min-h-[112px] border-t border-slate-100 px-2 py-2 text-left align-top transition ${isSelected
-                                    ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300"
-                                    : slot
-                                      ? "bg-emerald-50/70 hover:bg-emerald-50"
-                                      : "bg-white hover:bg-slate-50"
-                                    }`}
+                                  className={`min-h-[112px] border-t border-slate-100 px-2 py-2 text-left align-top transition ${
+                                    isSelected
+                                      ? "bg-indigo-50 ring-2 ring-inset ring-indigo-300"
+                                      : slot
+                                        ? "bg-emerald-50/70 hover:bg-emerald-50"
+                                        : "bg-white hover:bg-slate-50"
+                                  }`}
                                 >
                                   {slot ? (
                                     <div className="flex h-full flex-col rounded-2xl border border-emerald-200 bg-white px-2 py-2 shadow-sm">
                                       <div className="mb-2 rounded-xl bg-indigo-700 px-2 py-1.5 text-white">
-                                        <p className="text-xs font-semibold leading-tight">{room ? getRoomLabel(room) : `Phong ${slot.access.room_id}`}</p>
-                                        <p className="mt-1 text-[11px] text-indigo-100">{shift.time}</p>
+                                        <p className="text-xs font-semibold leading-tight">
+                                          {room
+                                            ? getRoomLabel(room)
+                                            : `Phòng ${slot.access.room_id}`}
+                                        </p>
+                                        <p className="mt-1 text-[11px] text-indigo-100">
+                                          {shift.time}
+                                        </p>
                                       </div>
                                       <p className="line-clamp-2 text-xs font-medium text-slate-800">
-                                        {room?.location ?? "Da xep trong thoi khoa bieu"}
+                                        {room?.location ??
+                                          "Đã xếp trong thời khóa biểu"}
                                       </p>
                                       <div className="mt-auto flex items-center justify-between pt-2 text-[11px] text-slate-500">
                                         <span>{day.shortLabel}</span>
                                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">
                                           <Check className="h-2.5 w-2.5" />
-                                          Da xep
+                                          Đã xếp
                                         </span>
                                       </div>
                                     </div>
                                   ) : (
                                     <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 text-center">
-                                      <p className="text-xs font-semibold text-slate-500">Trong</p>
-                                      <p className="mt-1 text-[11px] text-slate-400">Chon o de xep lich</p>
+                                      <p className="text-xs font-semibold text-slate-500">
+                                        Trống
+                                      </p>
+                                      <p className="mt-1 text-[11px] text-slate-400">
+                                        Chọn ô để xếp lịch
+                                      </p>
                                     </div>
                                   )}
                                 </button>
@@ -636,38 +1216,51 @@ const Users: React.FC = () => {
 
                 <div className="space-y-4">
                   <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm font-semibold text-slate-700">O dang chon</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      Ô đang chọn
+                    </p>
                     <p className="mt-2 text-base font-semibold text-slate-900">
                       {selectedDay !== null && selectedShift !== null
                         ? `${getDayLabel(selectedDay)} • ${getShiftLabel(selectedShift)}`
-                        : "Chua chon o nao tren lich"}
+                        : "Chưa chọn ô nào trên lịch"}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
-                      {selectedShift !== null ? getShiftTime(selectedShift) : "Hay bam vao mot o trong bang lich tuan."}
+                      {selectedShift !== null
+                        ? getShiftTime(selectedShift)
+                        : "Hãy bấm vào một ô trong bảng lịch tuần."}
                     </p>
                     {selectedSlotEntry && (
                       <div className="mt-3 rounded-2xl border border-emerald-200 bg-white px-4 py-3 text-sm text-slate-600">
-                        Dang co lich tai {selectedSlotEntry.room ? getRoomLabel(selectedSlotEntry.room) : `Phong ${selectedSlotEntry.access.room_id}`}.
+                        Đang có lịch tại{" "}
+                        {selectedSlotEntry.room
+                          ? getRoomLabel(selectedSlotEntry.room)
+                          : `Phòng ${selectedSlotEntry.access.room_id}`}
+                        .
                       </div>
                     )}
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Chon toa</p>
+                    <p className="mb-3 text-sm font-semibold text-slate-700">
+                      Chọn tòa
+                    </p>
                     <div className="space-y-3">
                       {hierarchy.map((item) => (
                         <button
                           key={item.key}
                           onClick={() => selectBuildingAndRoom(item.key)}
-                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${selectedBuilding === item.key
-                            ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                            : "border-slate-200 hover:bg-slate-50"
-                            }`}
+                          className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
+                            selectedBuilding === item.key
+                              ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                              : "border-slate-200 hover:bg-slate-50"
+                          }`}
                         >
                           <Building2 className="h-5 w-5" />
                           <div>
                             <p className="font-semibold">{item.label}</p>
-                            <p className="text-xs text-slate-500">{item.rooms.length} phong</p>
+                            <p className="text-xs text-slate-500">
+                              {item.rooms.length} phòng
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -675,10 +1268,12 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Chon tang</p>
+                    <p className="mb-3 text-sm font-semibold text-slate-700">
+                      Chọn tầng
+                    </p>
                     {!building ? (
                       <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                        Chua chon toa.
+                        Chưa chọn tòa.
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -686,15 +1281,18 @@ const Users: React.FC = () => {
                           <button
                             key={item.floor}
                             onClick={() => selectFloorAndRoom(item.floor)}
-                            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${selectedFloor === item.floor
-                              ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                              : "border-slate-200 hover:bg-slate-50"
-                              }`}
+                            className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${
+                              selectedFloor === item.floor
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                : "border-slate-200 hover:bg-slate-50"
+                            }`}
                           >
                             <Layers3 className="h-5 w-5" />
                             <div>
-                              <p className="font-semibold">Tang {item.floor}</p>
-                              <p className="text-xs text-slate-500">{item.rooms.length} phong</p>
+                              <p className="font-semibold">Tầng {item.floor}</p>
+                              <p className="text-xs text-slate-500">
+                                {item.rooms.length} phòng
+                              </p>
                             </div>
                           </button>
                         ))}
@@ -703,10 +1301,12 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-white p-4">
-                    <p className="mb-3 text-sm font-semibold text-slate-700">Chon phong hoc</p>
+                    <p className="mb-3 text-sm font-semibold text-slate-700">
+                      Chọn phòng học
+                    </p>
                     {!floor ? (
                       <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-400">
-                        Chua chon tang.
+                        Chưa chọn tầng.
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -717,12 +1317,15 @@ const Users: React.FC = () => {
                               setSelectedRoomId(room.id);
                               setError(null);
                             }}
-                            className={`w-full rounded-2xl border px-4 py-3 text-left ${selectedRoomId === room.id
-                              ? "border-sky-300 bg-sky-50"
-                              : "border-slate-200 hover:bg-slate-50"
-                              }`}
+                            className={`w-full rounded-2xl border px-4 py-3 text-left ${
+                              selectedRoomId === room.id
+                                ? "border-sky-300 bg-sky-50"
+                                : "border-slate-200 hover:bg-slate-50"
+                            }`}
                           >
-                            <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
+                            <p className="font-semibold text-slate-900">
+                              {getRoomLabel(room)}
+                            </p>
                             <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
                               <MapPin className="h-3.5 w-3.5" />
                               {room.location}
@@ -734,35 +1337,42 @@ const Users: React.FC = () => {
                   </div>
 
                   <div className="rounded-3xl border border-slate-200 bg-[linear-gradient(135deg,#eef2ff_0%,#f8fafc_100%)] p-4">
-                    <p className="text-sm font-semibold text-slate-700">Gan lich cho o dang chon</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      Gán lịch cho ô đang chọn
+                    </p>
                     <p className="mt-2 text-sm text-slate-500">
                       {selectedRoom
-                        ? `Phong dang chon: ${getRoomLabel(selectedRoom)}`
-                        : "Hay chon phong hoc truoc khi gan lich."}
+                        ? `Phòng đang chọn: ${getRoomLabel(selectedRoom)}`
+                        : "Hãy chọn phòng học trước khi gán lịch."}
                     </p>
                     <div className="mt-4 grid grid-cols-1 gap-3">
                       <Button
                         onClick={handleAssignSelectedSlot}
                         loading={submitting}
-                        disabled={!selectedRoomId || selectedDay === null || selectedShift === null || selectedSlotOccupied}
+                        disabled={
+                          !selectedRoomId ||
+                          selectedDay === null ||
+                          selectedShift === null ||
+                          selectedSlotOccupied
+                        }
                         className="rounded-2xl"
                       >
                         {selectedSlotAlreadyMatchesRoom
-                          ? "Go khoi TKB"
+                          ? "Gỡ khỏi TKB"
                           : selectedSlotMine
-                            ? "Thay doi lich TKB"
+                            ? "Thay đổi lịch TKB"
                             : selectedSlotEntry
-                              ? "Thay doi lich TKB"
-                              : "Them vao TKB"}
+                              ? "Thay đổi lịch TKB"
+                              : "Thêm vào TKB"}
                       </Button>
                     </div>
                     <div className="mt-4 space-y-2 text-xs text-slate-500">
                       <p>
                         {selectedSlotOccupied
-                          ? "Khung gio nay cua phong dang chon da thuoc ve nguoi khac."
+                          ? "Khung giờ này của phòng đang chọn đã thuộc về người khác."
                           : selectedSlotEntry
-                            ? "O dang chon da co lich. Chon phong khac roi bam nut tren de cap nhat lich."
-                            : "O dang chon chua co lich. Chon phong roi bam nut tren de them vao thoi khoa bieu."}
+                            ? "Ô đang chọn đã có lịch. Chọn phòng khác rồi bấm nút trên để cập nhật lịch."
+                            : "Ô đang chọn chưa có lịch. Chọn phòng rồi bấm nút trên để thêm vào thời khóa biểu."}
                       </p>
                     </div>
                   </div>
@@ -777,13 +1387,21 @@ const Users: React.FC = () => {
             <div className="space-y-4 border-b border-slate-100 px-5 py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">Danh sach nguoi dung</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Danh sách người dùng
+                  </h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Hien thi {filteredUsers.length}/{normalUsers.length} tai khoan user
+                    Hiển thị {filteredUsers.length}/{normalUsers.length} tài
+                    khoản user
                   </p>
                 </div>
-                <Button size="sm" variant="secondary" onClick={fetchUsers} loading={loading}>
-                  Lam moi
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={fetchUsers}
+                  loading={loading}
+                >
+                  Làm mới
                 </Button>
               </div>
 
@@ -792,7 +1410,7 @@ const Users: React.FC = () => {
                 <input
                   value={userSearchQuery}
                   onChange={(event) => setUserSearchQuery(event.target.value)}
-                  placeholder="Tim theo ten hoac email de xem lich nhanh hon"
+                  placeholder="Tìm theo tên hoặc email để xem lịch nhanh hơn"
                   className="w-full rounded-2xl border border-slate-200 bg-white py-2.5 pl-11 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100"
                 />
               </div>
@@ -800,17 +1418,22 @@ const Users: React.FC = () => {
             <div className="space-y-3 p-4">
               {filteredUsers.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-                  <p className="text-sm font-medium text-slate-700">Khong tim thay nguoi dung phu hop</p>
-                  <p className="mt-1 text-xs text-slate-500">Thu doi tu khoa tim kiem hoac bam Lam moi danh sach.</p>
+                  <p className="text-sm font-medium text-slate-700">
+                    Không tìm thấy người dùng phù hợp
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Thử đổi từ khóa tìm kiếm hoặc bấm Làm mới danh sách.
+                  </p>
                 </div>
               ) : (
                 filteredUsers.map((user) => (
                   <div
                     key={user.id}
-                    className={`rounded-3xl border p-4 transition ${selectedUserId === user.id
-                      ? "border-indigo-300 bg-indigo-50"
-                      : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
+                    className={`rounded-3xl border p-4 transition ${
+                      selectedUserId === user.id
+                        ? "border-indigo-300 bg-indigo-50"
+                        : "border-slate-200 bg-white hover:bg-slate-50"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <button
@@ -822,16 +1445,23 @@ const Users: React.FC = () => {
                           <UserRound className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-slate-900">{user.full_name}</p>
+                          <p className="font-semibold text-slate-900">
+                            {user.full_name}
+                          </p>
                           <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
                             <Mail className="h-4 w-4" />
                             {user.email}
                           </p>
-                          <p className="mt-2 text-xs text-slate-400">Tao luc: {formatDateTime(user.created_at)}</p>
+                          <p className="mt-2 text-xs text-slate-400">
+                            Tạo lúc: {formatDateTime(user.created_at)}
+                          </p>
                         </div>
                       </button>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={() => openScheduleView(user.id)}>
+                        <Button
+                          size="sm"
+                          onClick={() => openScheduleView(user.id)}
+                        >
                           Xem TKB
                         </Button>
                         <Button
@@ -841,7 +1471,7 @@ const Users: React.FC = () => {
                           loading={deletingId === user.id}
                         >
                           <Trash2 className="mr-1 h-4 w-4" />
-                          Xoa
+                          Xóa
                         </Button>
                       </div>
                     </div>

@@ -1,9 +1,20 @@
 import api from "./api";
 import type { Room } from "../types";
 
+export interface CreateRoomPayload {
+  name: string;
+  building: string;
+  location?: string | null;
+}
+
 export const roomApi = {
   getAll: async (): Promise<Room[]> => {
     const response = await api.get<Room[]>("/api/v1/rooms");
+    return response.data;
+  },
+
+  create: async (payload: CreateRoomPayload): Promise<Room> => {
+    const response = await api.post<Room>("/api/v1/rooms", payload);
     return response.data;
   },
 

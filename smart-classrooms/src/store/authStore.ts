@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import type { AuthState, LoginCredentials, User } from "../types";
 import { authApi } from "../services/authApi";
 import { clearStoredAuth, setStoredToken } from "../utils/authStorage";
+import { resetAlertsSession } from "../hooks/useAlerts";
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -32,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
             error:
               error.response?.data?.detail ||
               error.response?.data?.message ||
-              "Dang nhap that bai",
+              "Đăng nhập thất bại",
           });
           throw error;
         }
@@ -40,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         clearStoredAuth();
+        resetAlertsSession();
         set({
           user: null,
           token: null,
