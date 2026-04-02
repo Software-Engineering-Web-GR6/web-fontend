@@ -1,136 +1,77 @@
 # Smart Classrooms Frontend
 
-Frontend React + Vite cho hệ thống Smart Classroom.
+Frontend React + Vite cho he thong Smart Classroom.
 
-## Tính năng chính
+## Tinh nang chinh
 
-- Đăng nhập bằng backend JWT
-- Giao diện admin và user tách riêng
-- Dashboard phân tầng theo `tòa -> tầng -> phòng`
-- User xem dữ liệu theo quyền `room + shift + day`
-- Dữ liệu sensor lấy từ API và realtime qua WebSocket
-- Cảnh báo lấy từ backend và hiển thị qua chuông thông báo
-- Quản lý rules tự động hóa trong phần cài đặt
-- Quản lý thiết bị theo nhóm và theo từng thiết bị
-- Đồng bộ chế độ `tự động / thủ công` theo từng phòng
-- Hồ sơ tài khoản và đổi mật khẩu
-- Quản lý thời khóa biểu người dùng theo tuần
+- Dang nhap bang JWT tu backend
+- Tach giao dien admin va user
+- Dashboard theo toa, tang va phong
+- Du lieu sensor lay tu API va cap nhat realtime qua WebSocket
+- Hien thi canh bao realtime tu backend
+- Quan ly thiet bi theo nhom va theo tung thiet bi
+- Dong bo che do tu dong va thu cong theo tung phong
+- Ho so tai khoan, doi mat khau va lich hoc theo tuan
 
-## Yêu cầu
+## Yeu cau
 
 - Node.js 18+
 - npm
 
-## Chạy frontend
+## Cai dat
 
-### Cách nhanh trên Windows
-
-PowerShell có thể chặn `npm.ps1`, nên có thể dùng script có sẵn:
-
-```powershell
-cd e:\baitapCNPM\frontend\smart-classrooms
-.\run-dev.cmd
-```
-
-Script này sẽ:
-
-- dùng `npm.cmd`
-- tự cài dependencies nếu thiếu
-- chạy Vite tại `http://127.0.0.1:5173`
-
-### Chạy thủ công
-
-CMD:
-
-```cmd
-cd /d e:\baitapCNPM\frontend\smart-classrooms
+```bash
+cd e:/baitapCNPM/frontend-demo2/smart-classrooms
 npm install
+```
+
+Neu PowerShell chan `npm.ps1`, dung `npm.cmd` thay cho `npm`.
+
+## Chay development
+
+```bash
+cd e:/baitapCNPM/frontend-demo2/smart-classrooms
 npm run dev -- --host 127.0.0.1 --port 5173
 ```
 
-Nếu đã cài môi trường rồi:
-
-```cmd
-cd /d e:\baitapCNPM\frontend\smart-classrooms
-npm run dev -- --host 127.0.0.1 --port 5173
-```
-
-PowerShell:
-
-```powershell
-cd e:\baitapCNPM\frontend\smart-classrooms
-cmd /c npm install
-cmd /c npm run dev -- --host 127.0.0.1 --port 5173
-```
+Frontend local: `http://127.0.0.1:5173`
 
 ## Build production
 
-```cmd
-cd /d e:\baitapCNPM\frontend\smart-classrooms
-npm.cmd run build
+```bash
+cd e:/baitapCNPM/frontend-demo2/smart-classrooms
+npm run build
 ```
 
-## Kết nối backend
+## Cau hinh moi truong
 
-Frontend mặc định dùng:
-
-- API: `http://127.0.0.1:8000`
-- WebSocket: `ws://127.0.0.1:8000/ws/alerts`
-
-Có thể override bằng file `.env`:
+Tao file `.env` tu `.env.example` neu can thay doi dia chi backend:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8000
 VITE_SOCKET_URL=ws://127.0.0.1:8000/ws/alerts
 ```
 
-Repo này đã có file `.env.example`. Mỗi người trong nhóm chỉ cần copy thành `.env` nếu cần đổi host hoặc port.
+## Ket noi backend
 
-## Tài khoản demo
+- API mac dinh: `http://127.0.0.1:8000`
+- WebSocket mac dinh: `ws://127.0.0.1:8000/ws/alerts`
+- Swagger backend: `http://127.0.0.1:8000/docs`
 
-Nếu backend đang seed mặc định:
-
-- Admin:
-  - Email: `admin@example.com`
-  - Password: `admin123`
-- User demo 1:
-  - Email: `demo.user1@example.com`
-  - Password: `user12345`
-- User demo 2:
-  - Email: `demo.user2@example.com`
-  - Password: `user12345`
-
-## Luồng chạy đầy đủ
-
-1. Chạy backend
-2. Chạy frontend
-3. Chạy simulator nếu muốn có dữ liệu cảm biến tự động
-
-Backend docs:
-
-- `http://127.0.0.1:8000/docs`
-
-Frontend local:
-
-- `http://127.0.0.1:5173`
-
-## Cấu trúc chính
+## Cau truc chinh
 
 ```text
 smart-classrooms/
 |-- public/
 |-- src/
-|   |-- main.tsx                    # Entry point
-|   |-- App.tsx                     # Root component
-|   |-- components/                 # UI components
-|   |-- hooks/                      # Custom hooks
-|   |-- pages/                      # Trang admin và user
-|   |-- routes/                     # Route config
-|   |-- services/                   # API, socket, backend services
-|   |-- store/                      # Zustand state
-|   |-- types/                      # TypeScript types
-|   |-- utils/                      # Helper functions
-|   `-- styles/                     # Theme, CSS globals
+|   |-- components/
+|   |-- hooks/
+|   |-- pages/
+|   |-- routes/
+|   |-- services/
+|   |-- store/
+|   |-- utils/
+|   `-- styles/
 |-- package.json
 |-- tsconfig.json
 `-- vite.config.ts

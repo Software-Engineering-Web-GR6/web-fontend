@@ -12,11 +12,9 @@ import {
   Lock,
   Monitor,
   ShieldCheck,
-  User,
-  Building2,
-  Zap,
   TrendingUp,
-  Star,
+  User,
+  Zap,
 } from "lucide-react";
 import { useAuthStore } from "../store/authStore";
 import { useFormValidation } from "../hooks/useFormValidation";
@@ -26,22 +24,19 @@ import { PasswordStrengthMeter } from "../components/ui/PasswordStrengthMeter";
 const highlights = [
   {
     title: "Giám sát tức thời",
-    description:
-      "Theo dõi nhiệt độ, độ ẩm và CO2 theo thời gian thực cho từng phòng học.",
+    description: "Theo dõi nhiệt độ, độ ẩm và CO2 theo thời gian thực cho từng phòng học.",
     icon: Gauge,
     color: "from-cyan-500 to-sky-500",
   },
   {
     title: "Tự động hóa thiết bị",
-    description:
-      "Điều khiển đèn, quạt, điều hòa theo lịch học và ngưỡng cảm biến.",
+    description: "Điều khiển đèn, quạt, điều hòa theo lịch học và ngưỡng cảm biến.",
     icon: Cpu,
     color: "from-teal-500 to-emerald-500",
   },
   {
     title: "Vận hành bền vững",
-    description:
-      "Giảm lãng phí năng lượng và nâng cao trải nghiệm lớp học thông minh.",
+    description: "Giảm lãng phí năng lượng và nâng cao trải nghiệm lớp học thông minh.",
     icon: Leaf,
     color: "from-amber-500 to-orange-500",
   },
@@ -129,20 +124,12 @@ const Login: React.FC = () => {
           className="hidden px-10 py-12 lg:flex lg:flex-col lg:justify-between xl:px-16"
         >
           <div>
-            {/* Enhanced Badge */}
-            <motion.div
-              className="group relative inline-flex"
-              whileHover={{ scale: 1.05 }}
-            >
+            <motion.div className="group relative inline-flex" whileHover={{ scale: 1.05 }}>
               <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-teal-400 to-cyan-400 opacity-20 blur-md transition-opacity group-hover:opacity-40" />
               <div className="relative flex items-center gap-2 rounded-full border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-cyan-50 px-5 py-2.5 text-sm font-bold text-teal-800 shadow-lg">
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: "linear",
-                  }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 >
                   <ShieldCheck className="h-5 w-5 text-teal-600" />
                 </motion.div>
@@ -153,17 +140,14 @@ const Login: React.FC = () => {
               </div>
             </motion.div>
 
-            {/* Gradient Heading */}
             <h1 className="mt-6 max-w-xl bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600 bg-clip-text text-5xl font-black leading-tight text-transparent xl:text-6xl">
-              Trung tâm điều hành{" "}
-              <span className="text-slate-900">lớp học thông minh</span>
+              Trung tâm điều hành <span className="text-slate-900">lớp học thông minh</span>
             </h1>
             <p className="mt-4 max-w-xl text-lg leading-relaxed text-slate-600">
-              Kết nối cảm biến, thiết bị và lịch vận hành trong một giao diện
-              trực quan, ổn định và dễ sử dụng.
+              Kết nối cảm biến, thiết bị và lịch vận hành trong một giao diện trực quan, ổn
+              định và dễ sử dụng.
             </p>
 
-            {/* Compact Stats Row */}
             <div className="mt-6 flex items-center gap-6">
               {[
                 {
@@ -194,9 +178,7 @@ const Login: React.FC = () => {
                       <IconComponent className="h-5 w-5" />
                     </div>
                     <div>
-                      <div className="text-xl font-black text-slate-900">
-                        {stat.number}
-                      </div>
+                      <div className="text-xl font-black text-slate-900">{stat.number}</div>
                       <div className="text-xs text-slate-600">{stat.label}</div>
                     </div>
                   </div>
@@ -204,23 +186,17 @@ const Login: React.FC = () => {
               })}
             </div>
 
-            {/* Feature Badge */}
             <motion.div
               className="mt-5 flex items-center gap-3 rounded-xl border border-teal-100 bg-white/70 p-3.5 shadow-lg backdrop-blur"
               whileHover={{ scale: 1.02 }}
             >
-              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-white">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-teal-400 to-cyan-500 text-white">
                 <CheckCircle2 className="h-5 w-5" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-slate-900">
-                  Hệ thống quản lý thông minh
-                </p>
+                <p className="text-sm font-bold text-slate-900">Hệ thống quản lý thông minh</p>
                 <p className="text-xs text-slate-600">
-                  Điều khiển{" "}
-                  <span className="font-bold text-teal-700">
-                    cảm biến & thiết bị
-                  </span>{" "}
+                  Điều khiển <span className="font-bold text-teal-700">cảm biến & thiết bị</span>{" "}
                   tự động
                 </p>
               </div>
@@ -243,11 +219,7 @@ const Login: React.FC = () => {
                     <motion.div
                       className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${item.color} opacity-30 blur-xl`}
                       animate={{ scale: [1, 1.2, 1] }}
-                      transition={{
-                        duration: 3,
-                        repeat: Infinity,
-                        delay: index * 0.5,
-                      }}
+                      transition={{ duration: 3, repeat: Infinity, delay: index * 0.5 }}
                     />
                     <div
                       className={`relative flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${item.color} text-white shadow-lg transition-transform group-hover:scale-110 group-hover:rotate-3`}
@@ -258,12 +230,10 @@ const Login: React.FC = () => {
                   <h3 className="text-base font-bold text-slate-900 transition-colors group-hover:text-teal-700">
                     {item.title}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    {item.description}
-                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.description}</p>
                   <div className="mt-3 flex items-center gap-2">
                     <div className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                       Hoạt động
                     </div>
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
@@ -286,12 +256,9 @@ const Login: React.FC = () => {
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-700">
                   Đăng nhập hệ thống
                 </p>
-                <h2 className="mt-2 text-3xl font-bold text-slate-900">
-                  Chào mừng quay lại
-                </h2>
+                <h2 className="mt-2 text-3xl font-bold text-slate-900">Chào mừng quay lại</h2>
                 <p className="mt-2 text-sm text-slate-600">
-                  Sử dụng tài khoản của bạn để truy cập bảng điều khiển Smart
-                  Classroom.
+                  Sử dụng tài khoản của bạn để truy cập bảng điều khiển Smart Classroom.
                 </p>
               </div>
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-teal-600 to-cyan-500 text-white shadow-lg shadow-teal-700/20">
@@ -329,9 +296,7 @@ const Login: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Email
-                </label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Email</label>
                 <div className="relative">
                   <User className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
@@ -347,17 +312,11 @@ const Login: React.FC = () => {
                     }`}
                   />
                 </div>
-                {errors.username && (
-                  <p className="mt-1.5 text-xs text-rose-600">
-                    {errors.username}
-                  </p>
-                )}
+                {errors.username && <p className="mt-1.5 text-xs text-rose-600">{errors.username}</p>}
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  Mật khẩu
-                </label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">Mật khẩu</label>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                   <input
@@ -378,19 +337,11 @@ const Login: React.FC = () => {
                     onClick={() => setShowPassword((current) => !current)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600"
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
 
-                {errors.password && (
-                  <p className="mt-1.5 text-xs text-rose-600">
-                    {errors.password}
-                  </p>
-                )}
+                {errors.password && <p className="mt-1.5 text-xs text-rose-600">{errors.password}</p>}
 
                 {passwordStrength && !errors.password && (
                   <PasswordStrengthMeter
@@ -419,10 +370,7 @@ const Login: React.FC = () => {
 
               <p className="text-center text-sm text-slate-600">
                 Quên mật khẩu?{" "}
-                <Link
-                  to="/forgot-password"
-                  className="font-semibold text-teal-700 transition hover:text-teal-800"
-                >
+                <Link to="/forgot-password" className="font-semibold text-teal-700 transition hover:text-teal-800">
                   Lấy lại tài khoản
                 </Link>
               </p>

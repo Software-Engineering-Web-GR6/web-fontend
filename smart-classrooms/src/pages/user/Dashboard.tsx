@@ -11,7 +11,7 @@ import FanControl from "../../components/devices/FanControl";
 import LightControl from "../../components/devices/LightControl";
 import AcControl from "../../components/devices/AcControl";
 import { useSensor } from "../../hooks";
-import { authApi, roomApi } from "../../services";
+import { authApi, deviceApi, roomApi } from "../../services";
 import { useAuthStore, useSensorStore } from "../../store";
 import {
   buildRoomHierarchy,
@@ -22,6 +22,14 @@ import {
 } from "../../utils";
 import type { Room, UserScheduleEntry } from "../../types";
 
+const ActivityDot: React.FC<{ active: boolean }> = ({ active }) => (
+  <span
+    className={`inline-flex h-3 w-3 rounded-full border-2 border-white shadow-sm ${
+      active ? "bg-emerald-500" : "bg-slate-200"
+    }`}
+  />
+);
+
 const UserDashboard: React.FC = () => {
   const { isConnected } = useSensorStore();
   const { setUser } = useAuthStore();
@@ -30,6 +38,7 @@ const UserDashboard: React.FC = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<string | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<number | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [roomActivityById, setRoomActivityById] = useState<Record<number, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +67,44 @@ const UserDashboard: React.FC = () => {
 
   const hierarchy = useMemo(() => buildRoomHierarchy(rooms), [rooms]);
   const currentAccesses = useMemo(() => getCurrentRoomAccess(accesses), [accesses]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (rooms.length === 0) {
+      setRoomActivityById({});
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    const fetchRoomActivity = async () => {
+      try {
+        const results = await Promise.all(
+          rooms.map(async (room) => {
+            const devices = await deviceApi.getAll(room.id);
+            return [room.id, devices.some((device) => device.status)] as const;
+          }),
+        );
+
+        if (!isMounted) {
+          return;
+        }
+
+        setRoomActivityById(Object.fromEntries(results));
+      } catch (activityError) {
+        console.error("Failed to fetch room activity", activityError);
+      }
+    };
+
+    void fetchRoomActivity();
+    const intervalId = window.setInterval(fetchRoomActivity, 5000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [rooms]);
 
   useEffect(() => {
     if (!selectedBuilding && hierarchy[0]) {
@@ -92,6 +139,14 @@ const UserDashboard: React.FC = () => {
   const selectedRoom = floor?.rooms.find((room) => room.id === selectedRoomId) ?? null;
   const activeRoomAccess = currentAccesses.find((access) => access.room_id === selectedRoomId) ?? null;
   const canControlDevices = Boolean(activeRoomAccess && selectedRoom);
+  const selectedBuildingActive = useMemo(
+    () => building?.rooms.some((room) => roomActivityById[room.id]) ?? false,
+    [building, roomActivityById],
+  );
+  const selectedFloorActive = useMemo(
+    () => floor?.rooms.some((room) => roomActivityById[room.id]) ?? false,
+    [floor, roomActivityById],
+  );
 
   useSensor(selectedRoom?.id ?? null);
 
@@ -139,7 +194,12 @@ const UserDashboard: React.FC = () => {
                     : "border-slate-200 hover:bg-slate-50"
                 }`}
               >
-                <Building2 className="h-5 w-5" />
+                <div className="relative">
+                  <Building2 className="h-5 w-5" />
+                  <span className="absolute -right-1 -top-1">
+                    <ActivityDot active={item.rooms.some((room) => roomActivityById[room.id])} />
+                  </span>
+                </div>
                 <div>
                   <p className="font-semibold">{item.label}</p>
                   <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
@@ -167,7 +227,12 @@ const UserDashboard: React.FC = () => {
                       : "border-slate-200 hover:bg-slate-50"
                   }`}
                 >
-                  <Layers3 className="h-5 w-5" />
+                  <div className="relative">
+                    <Layers3 className="h-5 w-5" />
+                    <span className="absolute -right-1 -top-1">
+                      <ActivityDot active={item.rooms.some((room) => roomActivityById[room.id])} />
+                    </span>
+                  </div>
                   <div>
                     <p className="font-semibold">Tầng {item.floor}</p>
                     <p className="text-xs text-slate-500">{item.rooms.length} phòng</p>
@@ -196,15 +261,46 @@ const UserDashboard: React.FC = () => {
                       : "border-slate-200 hover:bg-slate-50"
                   }`}
                 >
-                  <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-semibold text-slate-900">{getRoomLabel(room)}</p>
+                    <ActivityDot active={Boolean(roomActivityById[room.id])} />
+                  </div>
                   <p className="mt-1 text-xs text-slate-500">{room.location}</p>
-                  <p className="mt-2 text-xs font-medium text-emerald-600">Có lịch ở ca hiện tại</p>
+                  <p className={`mt-2 text-xs font-medium ${roomActivityById[room.id] ? "text-emerald-600" : "text-slate-500"}`}>
+                    {roomActivityById[room.id] ? "Phòng đang có thiết bị hoạt động" : "Có lịch ở ca hiện tại"}
+                  </p>
                 </button>
               ))}
             </div>
           )}
         </Card>
       </div>
+
+      {selectedRoom && (
+        <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">Tòa hiện tại</span>
+              <ActivityDot active={selectedBuildingActive} />
+            </div>
+            <p className="mt-2 font-semibold text-slate-900">{building?.label ?? "Chưa chọn"}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">Tầng hiện tại</span>
+              <ActivityDot active={selectedFloorActive} />
+            </div>
+            <p className="mt-2 font-semibold text-slate-900">{floor ? `Tầng ${floor.floor}` : "Chưa chọn"}</p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-slate-600">Phòng hiện tại</span>
+              <ActivityDot active={Boolean(selectedRoomId && roomActivityById[selectedRoomId])} />
+            </div>
+            <p className="mt-2 font-semibold text-slate-900">{getRoomLabel(selectedRoom)}</p>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 rounded-3xl border border-slate-200 bg-white px-5 py-4">
         <div className="flex items-start gap-3">
