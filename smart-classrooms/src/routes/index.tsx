@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import AdminDashboard from "../pages/admin/Dashboard";
 import AdminAlerts from "../pages/admin/Alerts";
 import AdminDevices from "../pages/admin/Devices";
+import AdminRooms from "../pages/admin/Rooms";
 import AdminSettings from "../pages/admin/Settings";
 import AdminUsers from "../pages/admin/Users";
 import ProfilePage from "../pages/Profile";
@@ -70,6 +71,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminDevices />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/rooms"
+        element={
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <AdminRooms />
           </ProtectedRoute>
         }
       />

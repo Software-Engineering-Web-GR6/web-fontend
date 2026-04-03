@@ -34,6 +34,36 @@ export interface CreateUserPayload {
   password: string;
 }
 
+export interface ImportUsersPayload {
+  items: CreateUserPayload[];
+}
+
+export interface ImportScheduleRow {
+  email: string;
+  room_name: string;
+  day_of_week: number | string | null;
+  shift_number: number | string | null;
+}
+
+export interface ImportSchedulePayload {
+  items: ImportScheduleRow[];
+}
+
+export interface BatchImportResultItem {
+  row_number: number;
+  success: boolean;
+  message: string;
+  email?: string | null;
+  room_name?: string | null;
+  user_id?: number | null;
+}
+
+export interface BatchImportResponse {
+  created_count: number;
+  failed_count: number;
+  results: BatchImportResultItem[];
+}
+
 export const authApi = {
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
     const formData = new URLSearchParams({
@@ -211,6 +241,16 @@ export const authApi = {
 
   createUser: async (payload: CreateUserPayload): Promise<AdminUser> => {
     const response = await api.post<AdminUser>("/api/v1/auth/users", payload);
+    return response.data;
+  },
+
+  importUsers: async (payload: ImportUsersPayload): Promise<BatchImportResponse> => {
+    const response = await api.post<BatchImportResponse>("/api/v1/auth/users/import", payload);
+    return response.data;
+  },
+
+  importSchedule: async (payload: ImportSchedulePayload): Promise<BatchImportResponse> => {
+    const response = await api.post<BatchImportResponse>("/api/v1/auth/schedule/import", payload);
     return response.data;
   },
 

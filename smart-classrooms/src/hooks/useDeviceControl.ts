@@ -83,15 +83,15 @@ export const useDeviceControl = (roomId: number = 1) => {
   );
 
   const toggleFan = useCallback(async () => {
-    await toggleGroup("fan", !fanOn, "fan", "Khong the dieu khien quat");
+    await toggleGroup("fan", !fanOn, "fan", "Không thể điều khiển quạt");
   }, [fanOn, toggleGroup]);
 
   const toggleLight = useCallback(async () => {
-    await toggleGroup("light", !lightOn, "light", "Khong the dieu khien den");
+    await toggleGroup("light", !lightOn, "light", "Không thể điều khiển đèn");
   }, [lightOn, toggleGroup]);
 
   const toggleAc = useCallback(async () => {
-    await toggleGroup("ac", !acOn, "ac", "Khong the dieu khien dieu hoa");
+    await toggleGroup("ac", !acOn, "ac", "Không thể điều khiển điều hòa");
   }, [acOn, toggleGroup]);
 
   const toggleDevice = useCallback(
@@ -125,7 +125,7 @@ export const useDeviceControl = (roomId: number = 1) => {
         if (target) {
           updateDevice(target);
         }
-        setError(err?.response?.data?.detail || "Khong the dieu khien thiet bi");
+        setError(err?.response?.data?.detail || "Không thể điều khiển thiết bị");
         console.error(err);
         return null;
       } finally {
@@ -168,7 +168,7 @@ export const useDeviceControl = (roomId: number = 1) => {
         setAcTemp(updatedDevices[0]?.targetTemp ?? temp);
       } catch (err: any) {
         previousDevices.forEach((device) => updateDevice(device));
-        setError(err?.response?.data?.detail || "Khong the cap nhat nhiet do dieu hoa");
+        setError(err?.response?.data?.detail || "Không thể cập nhật nhiệt độ điều hòa");
         console.error(err);
       } finally {
         setLoading(false);

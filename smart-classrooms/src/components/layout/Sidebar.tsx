@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
   Bell,
+  Building2,
   CalendarDays,
   Fan,
   History,
@@ -48,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const adminLinks = [
     { path: "/admin/dashboard", icon: LayoutDashboard, label: "Tổng quan" },
     { path: "/admin/alerts", icon: Bell, label: "Cảnh báo" },
+    { path: "/admin/rooms", icon: Building2, label: "Phòng học" },
     { path: "/admin/devices", icon: Fan, label: "Thiết bị" },
     { path: "/admin/users", icon: Users, label: "Người dùng" },
     { path: "/admin/settings", icon: Settings, label: "Cài đặt" },
@@ -141,9 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span
                   className={clsx(
                     "mt-1 inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium",
-                    user.role === "admin"
-                      ? "bg-teal-100 text-teal-700"
-                      : "bg-sky-100 text-sky-700",
+                    user.role === "admin" ? "bg-teal-100 text-teal-700" : "bg-sky-100 text-sky-700",
                   )}
                 >
                   {user.role === "admin" ? "Quản trị viên" : "Người dùng"}
@@ -188,9 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title={expanded || mobileOpen ? undefined : "Đăng xuất"}
           className={clsx(
             "w-full rounded-2xl text-sm font-medium text-slate-600 transition hover:bg-rose-50 hover:text-rose-600",
-            expanded || mobileOpen
-              ? "flex items-center gap-3 px-4 py-3"
-              : "flex h-12 items-center justify-center px-0 py-0",
+            expanded || mobileOpen ? "flex items-center gap-3 px-4 py-3" : "flex h-12 items-center justify-center px-0 py-0",
           )}
         >
           <LogOut className="h-5 w-5" />
