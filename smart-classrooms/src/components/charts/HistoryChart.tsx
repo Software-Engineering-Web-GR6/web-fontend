@@ -10,7 +10,7 @@ import {
   Legend,
 } from "recharts";
 import { useSensorStore } from "../../store";
-import { buildThirtySecondStepLabels } from "../../utils/formatters";
+import { formatChartTime } from "../../utils/formatters";
 import { CHART_COLORS } from "../../utils/constants";
 
 interface HistoryChartProps {
@@ -27,14 +27,8 @@ export const HistoryChart: React.FC<HistoryChartProps> = ({ height = 300 }) => {
         new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
     );
 
-  const labels = buildThirtySecondStepLabels(
-    rawData.length,
-    rawData[rawData.length - 1]?.timestamp,
-  );
-
-  const data = rawData.map((item, index) => ({
+  const data = rawData.map((item) => ({
     timestamp: item.timestamp,
-    time: labels[index],
     temp: item.temp,
     humidity: item.humidity,
   }));
@@ -52,7 +46,8 @@ export const HistoryChart: React.FC<HistoryChartProps> = ({ height = 300 }) => {
       <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         <XAxis
-          dataKey="time"
+          dataKey="timestamp"
+          tickFormatter={(value: string) => formatChartTime(value)}
           tick={{ fontSize: 11, fill: "#6b7280" }}
           axisLine={{ stroke: "#e5e7eb" }}
           tickLine={{ stroke: "#e5e7eb" }}
@@ -81,6 +76,7 @@ export const HistoryChart: React.FC<HistoryChartProps> = ({ height = 300 }) => {
             borderRadius: "8px",
             boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
           }}
+          labelFormatter={(value: string) => formatChartTime(value)}
           formatter={(value, name) => {
             const v = Number(value);
             if (name === "temp") return [`${v.toFixed(1)}°C`, "Nhiệt độ"];

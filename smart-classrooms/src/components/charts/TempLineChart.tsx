@@ -11,7 +11,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useSensorStore } from "../../store";
-import { buildThirtySecondStepLabels } from "../../utils/formatters";
+import { formatChartTime } from "../../utils/formatters";
 import { CHART_COLORS } from "../../utils/constants";
 
 interface TempLineChartProps {
@@ -30,14 +30,8 @@ export const TempLineChart: React.FC<TempLineChartProps> = ({
         new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
     );
 
-  const labels = buildThirtySecondStepLabels(
-    rawData.length,
-    rawData[rawData.length - 1]?.timestamp,
-  );
-
-  const data = rawData.map((item, index) => ({
+  const data = rawData.map((item) => ({
     timestamp: item.timestamp,
-    time: labels[index],
     value: item.temp,
   }));
 
@@ -70,7 +64,8 @@ export const TempLineChart: React.FC<TempLineChartProps> = ({
 
         <CartesianGrid vertical={false} strokeDasharray="4 4" stroke="#e5e7eb" />
         <XAxis
-          dataKey="time"
+          dataKey="timestamp"
+          tickFormatter={(value: string) => formatChartTime(value)}
           tick={{ fontSize: 12, fill: "#6b7280" }}
           axisLine={{ stroke: "#e5e7eb" }}
           tickLine={false}
@@ -97,6 +92,7 @@ export const TempLineChart: React.FC<TempLineChartProps> = ({
             boxShadow: "0 12px 30px rgba(15, 23, 42, 0.28)",
           }}
           labelStyle={{ color: "#cbd5e1", fontSize: "12px" }}
+          labelFormatter={(value: string) => formatChartTime(value)}
           formatter={(value) => [`${Number(value).toFixed(1)}°C`, "Nhiệt độ"]}
         />
 
