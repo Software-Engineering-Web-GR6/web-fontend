@@ -10,7 +10,7 @@ import {
   Legend,
 } from "recharts";
 import { useSensorStore } from "../../store";
-import { formatChartTime } from "../../utils/formatters";
+import { formatChartTime, toSafeTimestampMs } from "../../utils/formatters";
 import { CHART_COLORS } from "../../utils/constants";
 
 interface HistoryChartProps {
@@ -24,7 +24,7 @@ export const HistoryChart: React.FC<HistoryChartProps> = ({ height = 300 }) => {
     .slice(-30)
     .sort(
       (left, right) =>
-        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+        toSafeTimestampMs(left.timestamp) - toSafeTimestampMs(right.timestamp),
     );
 
   const data = rawData.map((item) => ({

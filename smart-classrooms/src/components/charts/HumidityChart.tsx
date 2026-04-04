@@ -11,7 +11,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useSensorStore } from "../../store";
-import { formatChartTime } from "../../utils/formatters";
+import { formatChartTime, toSafeTimestampMs } from "../../utils/formatters";
 import { CHART_COLORS } from "../../utils/constants";
 
 interface HumidityChartProps {
@@ -27,7 +27,7 @@ export const HumidityChart: React.FC<HumidityChartProps> = ({
     .slice(-36)
     .sort(
       (left, right) =>
-        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+        toSafeTimestampMs(left.timestamp) - toSafeTimestampMs(right.timestamp),
     );
 
   const data = rawData.map((item) => ({

@@ -5,6 +5,7 @@ import {
   DEFAULT_HUMIDITY,
   HISTORY_LIMIT,
 } from "../utils/constants";
+import { toSafeTimestampMs } from "../utils/formatters";
 
 const MAX_HISTORY_GAP_MS = 20_000;
 
@@ -13,7 +14,7 @@ const normalizeHistory = (history: SensorHistory[]) =>
     .slice()
     .sort(
       (left, right) =>
-        new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+        toSafeTimestampMs(left.timestamp) - toSafeTimestampMs(right.timestamp),
     )
     .reduce<SensorHistory[]>((items, item) => {
       const existingIndex = items.findIndex(
@@ -34,7 +35,7 @@ const normalizeHistory = (history: SensorHistory[]) =>
 
       const previous = items[items.length - 1];
       const gap =
-        new Date(item.timestamp).getTime() - new Date(previous.timestamp).getTime();
+        toSafeTimestampMs(item.timestamp) - toSafeTimestampMs(previous.timestamp);
 
       if (gap > MAX_HISTORY_GAP_MS) {
         return [item];
