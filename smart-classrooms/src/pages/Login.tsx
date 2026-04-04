@@ -19,7 +19,6 @@ import {
 import { useAuthStore } from "../store/authStore";
 import { useFormValidation } from "../hooks/useFormValidation";
 import { Spinner } from "../components/ui/Spinner";
-import { PasswordStrengthMeter } from "../components/ui/PasswordStrengthMeter";
 
 const highlights = [
   {
@@ -45,15 +44,13 @@ const highlights = [
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuthStore();
-  const { errors, validate, getPasswordStrength } = useFormValidation();
+  const { errors, validate } = useFormValidation();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState({ username: false, password: false });
   const [loginSuccess, setLoginSuccess] = useState(false);
-
-  const passwordStrength = password ? getPasswordStrength(password) : null;
 
   const navigateByRole = (role: string | null) => {
     navigate(role === "admin" ? "/admin/dashboard" : "/user/dashboard");
@@ -69,7 +66,6 @@ const Login: React.FC = () => {
     });
     const isPasswordValid = validate("password", password, {
       required: true,
-      minLength: 6,
     });
 
     if (!isUsernameValid || !isPasswordValid) {
@@ -97,7 +93,7 @@ const Login: React.FC = () => {
   const handlePasswordChange = (value: string) => {
     setPassword(value);
     if (touched.password) {
-      validate("password", value, { required: true, minLength: 6 });
+      validate("password", value, { required: true });
     }
   };
 
@@ -106,7 +102,7 @@ const Login: React.FC = () => {
     if (field === "username") {
       validate("username", username, { required: true, email: true });
     } else {
-      validate("password", password, { required: true, minLength: 6 });
+      validate("password", password, { required: true });
     }
   };
 
@@ -305,11 +301,10 @@ const Login: React.FC = () => {
                     onChange={(e) => handleUsernameChange(e.target.value)}
                     onBlur={() => handleBlur("username")}
                     placeholder="admin@example.com"
-                    className={`w-full rounded-2xl border bg-white px-12 py-3.5 text-slate-900 outline-none transition focus:ring-4 ${
-                      errors.username
+                    className={`w-full rounded-2xl border bg-white px-12 py-3.5 text-slate-900 outline-none transition focus:ring-4 ${errors.username
                         ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100"
                         : "border-teal-100 focus:border-teal-400 focus:ring-teal-100"
-                    }`}
+                      }`}
                   />
                 </div>
                 {errors.username && <p className="mt-1.5 text-xs text-rose-600">{errors.username}</p>}
@@ -325,11 +320,10 @@ const Login: React.FC = () => {
                     onChange={(e) => handlePasswordChange(e.target.value)}
                     onBlur={() => handleBlur("password")}
                     placeholder="Nhập mật khẩu"
-                    className={`w-full rounded-2xl border bg-white px-12 py-3.5 text-slate-900 outline-none transition focus:ring-4 ${
-                      errors.password
+                    className={`w-full rounded-2xl border bg-white px-12 py-3.5 text-slate-900 outline-none transition focus:ring-4 ${errors.password
                         ? "border-rose-300 focus:border-rose-400 focus:ring-rose-100"
                         : "border-teal-100 focus:border-teal-400 focus:ring-teal-100"
-                    }`}
+                      }`}
                   />
 
                   <button
@@ -342,15 +336,6 @@ const Login: React.FC = () => {
                 </div>
 
                 {errors.password && <p className="mt-1.5 text-xs text-rose-600">{errors.password}</p>}
-
-                {passwordStrength && !errors.password && (
-                  <PasswordStrengthMeter
-                    password={password}
-                    strength={passwordStrength.strength}
-                    score={passwordStrength.score}
-                    feedback={passwordStrength.feedback}
-                  />
-                )}
               </div>
 
               <button
