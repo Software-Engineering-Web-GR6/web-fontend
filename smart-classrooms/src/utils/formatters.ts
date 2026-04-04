@@ -10,23 +10,25 @@ export const normalizeTimestamp = (timestamp: string): string => {
     return timestamp;
   }
 
-  return TIMESTAMP_HAS_TIMEZONE_REGEX.test(value) ? value : value;
-};
+  if (!TIMESTAMP_HAS_TIMEZONE_REGEX.test(value)) {
+    return value;
+  }
 
-const parseTimestamp = (timestamp: string): Date => {
-  const normalized = normalizeTimestamp(timestamp);
-  const parsed = new Date(normalized);
-
-  if (!TIMESTAMP_HAS_TIMEZONE_REGEX.test(normalized)) {
-    return parsed;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
   }
 
   const skewMs = parsed.getTime() - Date.now();
   if (skewMs > FUTURE_SKEW_MIN_MS && skewMs < FUTURE_SKEW_MAX_MS) {
-    return new Date(parsed.getTime() - TZ_OFFSET_MS);
+    return new Date(parsed.getTime() - TZ_OFFSET_MS).toISOString();
   }
 
-  return parsed;
+  return value;
+};
+
+const parseTimestamp = (timestamp: string): Date => {
+  return new Date(normalizeTimestamp(timestamp));
 };
 
 // Format timestamp to readable date
