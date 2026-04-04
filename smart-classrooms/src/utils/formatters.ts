@@ -6,7 +6,7 @@ export const normalizeTimestamp = (timestamp: string): string => {
     return timestamp;
   }
 
-  return TIMESTAMP_HAS_TIMEZONE_REGEX.test(value) ? value : `${value}Z`;
+  return TIMESTAMP_HAS_TIMEZONE_REGEX.test(value) ? value : value;
 };
 
 const parseTimestamp = (timestamp: string): Date => {
