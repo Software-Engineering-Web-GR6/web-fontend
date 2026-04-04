@@ -1,5 +1,6 @@
 import api from "./api";
 import type { SensorHistory } from "../types";
+import { normalizeTimestamp } from "../utils/formatters";
 
 interface BackendSensorReading {
   id: number;
@@ -29,7 +30,7 @@ export const sensorApi = {
         temp: item.temperature ?? 0,
         humidity: item.humidity ?? 0,
         co2: item.co2 ?? 800,
-        timestamp: item.recorded_at,
+        timestamp: normalizeTimestamp(item.recorded_at),
       }))
       .sort(
         (left, right) =>
@@ -46,7 +47,7 @@ export const sensorApi = {
       temp: response.data.temperature ?? 0,
       humidity: response.data.humidity ?? 0,
       co2: response.data.co2 ?? 800,
-      timestamp: response.data.recorded_at,
+      timestamp: normalizeTimestamp(response.data.recorded_at),
     };
   },
 };

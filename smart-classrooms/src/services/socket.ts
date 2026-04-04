@@ -1,5 +1,6 @@
 import { SOCKET_URL } from "../utils/constants";
 import type { SensorData } from "../types";
+import { normalizeTimestamp } from "../utils/formatters";
 
 class SocketService {
   private socket: WebSocket | null = null;
@@ -122,7 +123,7 @@ function mapMessageToSensorData(payload: unknown): SensorData | null {
         co2: typeof reading.co2 === "number" ? reading.co2 : 800,
         timestamp:
           typeof reading.recorded_at === "string"
-            ? reading.recorded_at
+            ? normalizeTimestamp(reading.recorded_at)
             : new Date().toISOString(),
       };
     }
@@ -135,7 +136,7 @@ function mapMessageToSensorData(payload: unknown): SensorData | null {
       co2: typeof data.co2 === "number" ? data.co2 : 800,
       timestamp:
         typeof data.timestamp === "string"
-          ? data.timestamp
+          ? normalizeTimestamp(data.timestamp)
           : new Date().toISOString(),
     };
   }
@@ -147,7 +148,7 @@ function mapMessageToSensorData(payload: unknown): SensorData | null {
       co2: typeof data.co2 === "number" ? data.co2 : 800,
       timestamp:
         typeof data.recorded_at === "string"
-          ? data.recorded_at
+          ? normalizeTimestamp(data.recorded_at)
           : new Date().toISOString(),
     };
   }
