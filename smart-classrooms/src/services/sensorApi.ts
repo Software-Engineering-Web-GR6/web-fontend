@@ -1,6 +1,6 @@
 import api from "./api";
 import type { SensorHistory } from "../types";
-import { normalizeTimestamp } from "../utils/formatters";
+import { normalizeTimestamp, toSafeTimestampMs } from "../utils/formatters";
 
 interface BackendSensorReading {
   id: number;
@@ -34,7 +34,7 @@ export const sensorApi = {
       }))
       .sort(
         (left, right) =>
-          new Date(left.timestamp).getTime() - new Date(right.timestamp).getTime(),
+          toSafeTimestampMs(left.timestamp) - toSafeTimestampMs(right.timestamp),
       );
   },
 

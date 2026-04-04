@@ -27,8 +27,19 @@ export const normalizeTimestamp = (timestamp: string): string => {
   return value;
 };
 
+export const toSafeTimestampMs = (timestamp: string): number => {
+  const parsed = new Date(normalizeTimestamp(timestamp));
+  const ms = parsed.getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+};
+
 const parseTimestamp = (timestamp: string): Date => {
-  return new Date(normalizeTimestamp(timestamp));
+  const parsed = new Date(normalizeTimestamp(timestamp));
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date();
+  }
+
+  return parsed;
 };
 
 // Format timestamp to readable date
