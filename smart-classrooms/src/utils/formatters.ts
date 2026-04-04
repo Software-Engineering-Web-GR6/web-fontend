@@ -1,6 +1,21 @@
+const TIMESTAMP_HAS_TIMEZONE_REGEX = /(Z|[+-]\d{2}:\d{2})$/i;
+
+export const normalizeTimestamp = (timestamp: string): string => {
+  const value = timestamp.trim();
+  if (!value) {
+    return timestamp;
+  }
+
+  return TIMESTAMP_HAS_TIMEZONE_REGEX.test(value) ? value : `${value}Z`;
+};
+
+const parseTimestamp = (timestamp: string): Date => {
+  return new Date(normalizeTimestamp(timestamp));
+};
+
 // Format timestamp to readable date
 export const formatDate = (timestamp: string): string => {
-  const date = new Date(timestamp);
+  const date = parseTimestamp(timestamp);
   return date.toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -10,7 +25,7 @@ export const formatDate = (timestamp: string): string => {
 
 // Format timestamp to readable time
 export const formatTime = (timestamp: string): string => {
-  const date = new Date(timestamp);
+  const date = parseTimestamp(timestamp);
   return date.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -19,7 +34,7 @@ export const formatTime = (timestamp: string): string => {
 
 // Format timestamp to full datetime
 export const formatDateTime = (timestamp: string): string => {
-  const date = new Date(timestamp);
+  const date = parseTimestamp(timestamp);
   return date.toLocaleString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -42,7 +57,7 @@ export const formatHumidity = (humidity: number): string => {
 // Format relative time
 export const formatRelativeTime = (timestamp: string): string => {
   const now = new Date();
-  const date = new Date(timestamp);
+  const date = parseTimestamp(timestamp);
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
@@ -57,7 +72,7 @@ export const formatRelativeTime = (timestamp: string): string => {
 
 // Format chart axis label
 export const formatChartTime = (timestamp: string): string => {
-  const date = new Date(timestamp);
+  const date = parseTimestamp(timestamp);
   return date.toLocaleTimeString("vi-VN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -66,7 +81,7 @@ export const formatChartTime = (timestamp: string): string => {
 };
 
 export const buildThirtySecondStepLabels = (count: number, endTimestamp?: string): string[] => {
-  const end = endTimestamp ? new Date(endTimestamp) : new Date();
+  const end = endTimestamp ? parseTimestamp(endTimestamp) : new Date();
   return Array.from({ length: count }, (_, index) => {
     const date = new Date(end);
     date.setSeconds(end.getSeconds() - (count - 1 - index) * 30);
